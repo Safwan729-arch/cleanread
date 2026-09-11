@@ -1,0 +1,32 @@
+{
+  "name": "cleanread",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Chrome (Manifest V3) extension that turns any messy webpage into a clean reading page.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "smoke:chrome": "node scripts/smoke-chrome.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "package": "npm run build && node scripts/package.mjs",
+    "shots:store": "node scripts/store-screenshots.mjs"
+  },
+  "dependencies": {
+    "@mozilla/readability": "^0.6.0",
+    "dexie": "^4.4.6",
+    "html2pdf.js": "^0.14.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "turndown": "^7.2.4",
+    "webextension-polyfill": "^0.12.0"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.7.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jszip": "^3.10.2",
+    "playwright-core": "^1.63.0",
+    "vite": "^8.3.0"
+  }
+}

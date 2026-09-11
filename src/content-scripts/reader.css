@@ -1,0 +1,428 @@
+/* Lives inside the reader's shadow root, so the host page's CSS cannot reach
+   these rules and these rules cannot leak out. Imported as a string via
+   `?inline` in clean.js -- it is NOT injected through the manifest. */
+
+:host {
+  --cr-font-size: 18px;
+  --cr-line-height: 1.6;
+  --cr-width: 680px;
+  --cr-bg: #fbfaf8;
+  --cr-fg: #1c1c1a;
+  --cr-muted: #6b6b66;
+  --cr-rule: #e3e0da;
+  --cr-link: #0b5ea8;
+}
+
+:host([data-theme="dark"]) {
+  --cr-bg: #16161a;
+  --cr-fg: #e8e6e1;
+  --cr-muted: #9a978f;
+  --cr-rule: #2e2e34;
+  --cr-link: #79b8ff;
+}
+
+.cr-surface {
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--cr-bg);
+  color: var(--cr-fg);
+  font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  font-size: var(--cr-font-size);
+  line-height: var(--cr-line-height);
+  -webkit-font-smoothing: antialiased;
+  padding: 48px 24px 96px;
+}
+
+.cr-header,
+.cr-content {
+  max-width: var(--cr-width);
+  margin: 0 auto;
+}
+
+.cr-header {
+  border-bottom: 1px solid var(--cr-rule);
+  padding-bottom: 20px;
+  margin-bottom: 32px;
+}
+
+.cr-title {
+  font-size: 1.9em;
+  line-height: 1.2;
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.cr-meta {
+  margin: 0;
+  font-size: 0.78em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--cr-muted);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.cr-content p,
+.cr-content li,
+.cr-content blockquote {
+  font-size: 1em;
+  line-height: var(--cr-line-height);
+}
+
+.cr-content p { margin: 0 0 1.15em; }
+
+.cr-content h2,
+.cr-content h3,
+.cr-content h4 {
+  line-height: 1.25;
+  margin: 1.8em 0 0.5em;
+  font-weight: 700;
+}
+
+.cr-content h2 { font-size: 1.4em; }
+.cr-content h3 { font-size: 1.18em; }
+
+.cr-content a {
+  color: var(--cr-link);
+  text-underline-offset: 2px;
+}
+
+/* Images stay INLINE by default. Forcing every image to block puts inline
+   maths and small glyphs on their own centred line, mid-sentence. Only images
+   that genuinely stand alone in their container become figures. */
+.cr-content img,
+.cr-content video,
+.cr-content svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.cr-content figure,
+.cr-content video,
+.cr-content figure > img,
+.cr-content p > img:only-child:not([data-cr-math="inline"]),
+.cr-content div > img:only-child:not([data-cr-math="inline"]),
+.cr-content dd > img:only-child:not([data-cr-math="inline"]),
+.cr-content figure > svg,
+.cr-content p > svg:only-child,
+.cr-content div > svg:only-child {
+  display: block;
+  margin: 1.5em auto;
+  border-radius: 4px;
+}
+
+/* --- maths ----------------------------------------------------------------
+   Tagged during extraction (see tagMath in clean.js) because the site's own
+   classes are the only thing that identifies an SVG as an equation. */
+
+.cr-content [data-cr-math="inline"] {
+  display: inline-block;
+  vertical-align: middle; /* small symbols and tall fractions both sit sensibly */
+  margin: 0 0.12em;
+  border-radius: 0;
+}
+
+.cr-content [data-cr-math="display"] {
+  display: block;
+  margin: 1.2em auto;
+  border-radius: 0;
+}
+
+/* Maths ships as black glyphs on transparency, which is invisible on a dark
+   background. Invert it; hue-rotate keeps any coloured maths roughly right. */
+:host([data-theme="dark"]) .cr-content img[data-cr-math] {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
+.cr-content figcaption {
+  font-size: 0.8em;
+  color: var(--cr-muted);
+  text-align: center;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.cr-content blockquote {
+  margin: 1.5em 0;
+  padding-left: 1.1em;
+  border-left: 3px solid var(--cr-rule);
+  color: var(--cr-muted);
+  font-style: italic;
+}
+
+.cr-content pre {
+  overflow-x: auto;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.12);
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+.cr-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.cr-content table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  display: block;
+  overflow-x: auto;
+}
+
+.cr-content hr {
+  border: 0;
+  border-top: 1px solid var(--cr-rule);
+  margin: 2em 0;
+}
+
+/* --- contents rail -------------------------------------------------------
+   Fixed to the viewport (the host has no transform, so `fixed` resolves
+   against the viewport even from inside the shadow root). Hidden on narrow
+   windows, where it would crowd the column it is meant to serve. */
+
+.cr-toc {
+  position: fixed;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 216px;
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  padding: 14px 14px 12px;
+  border: 1px solid var(--cr-rule);
+  border-radius: 10px;
+  background: var(--cr-bg);
+  color: var(--cr-fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.cr-toc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cr-toc-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cr-muted);
+}
+
+.cr-toc-toggle {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--cr-muted);
+  background: transparent;
+  border: 1px solid var(--cr-rule);
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.cr-toc-toggle:hover { color: var(--cr-fg); }
+
+.cr-toc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.cr-toc[data-collapsed] .cr-toc-list { display: none; }
+.cr-toc[data-collapsed] { width: auto; }
+.cr-toc[data-collapsed] .cr-toc-label { display: none; }
+
+.cr-toc-item[data-level="3"] { padding-left: 12px; }
+
+.cr-toc-link {
+  display: block;
+  padding: 4px 0 4px 9px;
+  border-left: 2px solid transparent;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--cr-muted);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.cr-toc-link:hover { color: var(--cr-fg); }
+
+.cr-toc-link.is-active {
+  color: var(--cr-fg);
+  border-left-color: var(--cr-link);
+  font-weight: 600;
+}
+
+/* headings sit flush to the top when jumped to */
+.cr-content h2,
+.cr-content h3 { scroll-margin-top: 24px; }
+
+@media (max-width: 1180px) {
+  .cr-toc { display: none; }
+}
+
+/* --- paragraph highlighting ----------------------------------------------
+   Every markable block carries the padding whether highlighted or not, so
+   toggling changes colour only and never reflows the column. */
+
+:host {
+  --cr-mark: #fdf0a4;
+  --cr-mark-edge: #d9bf45;
+}
+
+:host([data-theme="dark"]) {
+  --cr-mark: #4a4320;
+  --cr-mark-edge: #8a7728;
+}
+
+.cr-content p[data-cr-hash],
+.cr-content blockquote[data-cr-hash] {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.cr-content p[data-cr-hash] {
+  padding: 3px 10px;
+  margin-left: -10px;
+  margin-right: -10px;
+}
+
+.cr-content p[data-cr-hash]:hover,
+.cr-content blockquote[data-cr-hash]:hover {
+  background: rgba(127, 127, 127, 0.11);
+}
+
+.cr-content p[data-cr-hash].is-highlighted,
+.cr-content blockquote[data-cr-hash].is-highlighted {
+  background: var(--cr-mark);
+  box-shadow: inset 3px 0 0 var(--cr-mark-edge);
+}
+
+/* keep highlighted text readable on the light mark in dark mode */
+:host([data-theme="dark"]) .cr-content p[data-cr-hash].is-highlighted,
+:host([data-theme="dark"]) .cr-content blockquote[data-cr-hash].is-highlighted {
+  color: #f3efe2;
+}
+
+/* standalone notice on the saved-article page (not tiny caps like .cr-meta) */
+.cr-notice {
+  max-width: var(--cr-width);
+  margin: 0 auto;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 0.82em;
+  color: var(--cr-muted);
+}
+
+/* action row on the saved-article page */
+.cr-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.cr-action {
+  font: inherit;
+  font-size: 1em;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: var(--cr-link);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.cr-action:hover { color: var(--cr-fg); }
+
+/* --- print / save-as-PDF ---------------------------------------------------
+   The browser's own print pipeline keeps text as text -- selectable,
+   searchable and readable by screen readers -- unlike the rasterised
+   html2pdf path. See notes/features/pdf-export.md. */
+
+@media print {
+  /* force the light palette even when reading in dark mode */
+  :host,
+  :host([data-theme="dark"]) {
+    --cr-bg: #ffffff;
+    --cr-fg: #000000;
+    --cr-muted: #444444;
+    --cr-rule: #bbbbbb;
+    --cr-link: #000000;
+  }
+
+  /* navigation and buttons are meaningless on paper */
+  .cr-toc,
+  .cr-actions {
+    display: none !important;
+  }
+
+  .cr-surface {
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+  }
+
+  .cr-header,
+  .cr-content {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  .cr-content a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+
+  /* never strand a heading at the foot of a page */
+  .cr-content h2,
+  .cr-content h3,
+  .cr-content h4 {
+    break-after: avoid-page;
+    page-break-after: avoid;
+  }
+
+  .cr-content figure,
+  .cr-content blockquote,
+  .cr-content pre,
+  .cr-content table {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* highlights are content, so keep them -- browsers drop backgrounds otherwise */
+  .cr-content [data-cr-hash].is-highlighted {
+    background: #ffef9f !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .cr-content [data-cr-hash] {
+    cursor: auto;
+  }
+
+  /* paper is white even when reading in dark mode, so undo the maths invert */
+  .cr-content img[data-cr-math] {
+    filter: none !important;
+  }
+}

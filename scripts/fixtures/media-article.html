@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Measuring What Models Actually Do — Messy Times</title>
+<meta property="og:site_name" content="Messy Times">
+<style>
+  body { margin:0; font-family:Arial, sans-serif; background:#eee; }
+  article { max-width:760px; margin:0 auto; background:#fff; padding:28px; }
+  figure { margin: 1.5em 0; }
+  figcaption { font-size: 0.85em; color:#555; }
+  .tracking { width:1px; height:1px; }
+</style>
+</head>
+<body>
+  <article>
+    <h1>Measuring What Models Actually Do</h1>
+    <p class="byline">By Dana Reyes</p>
+
+    <p>Benchmarks are easy to quote and hard to interpret. A single number compresses a great deal of judgement about what was measured, on which distribution, and against whose baseline. The charts below are the part of this piece that carries the argument, so they are worth reading before the prose that surrounds them.</p>
+
+    <!-- 1. hero image wrapped in a container whose class contains a junk token -->
+    <figure class="article-banner">
+      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMjQwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjI0MCIgZmlsbD0iI2RkZThmNSIvPjx0ZXh0IHg9IjI0IiB5PSIxMzAiIGZvbnQtc2l6ZT0iMjgiIGZpbGw9IiMxMTMzNTUiPkhlcm8gaW1hZ2U8L3RleHQ+PC9zdmc+"
+           width="640" height="240" alt="Hero image for the article">
+      <figcaption>Figure 1. The headline result, shown as a hero image.</figcaption>
+    </figure>
+
+    <p>The first thing to notice is that the gap narrows considerably once the evaluation is held fixed. That is not a claim about capability so much as a claim about measurement, and it is the reason the second chart matters more than the first.</p>
+
+    <!-- 2. lazy-loaded image: real URL lives in data-src, src is a placeholder -->
+    <figure>
+      <img class="lazy-figure"
+           src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="
+           data-src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iMjYwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjI2MCIgZmlsbD0iI2ZmZjNkNiIvPjx0ZXh0IHg9IjI0IiB5PSIxNDAiIGZvbnQtc2l6ZT0iMjYiIGZpbGw9IiM1ZDQyMDAiPkxhenktbG9hZGVkIGNoYXJ0PC90ZXh0Pjwvc3ZnPg=="
+           loading="lazy" width="640" height="260" alt="Scaling curve by evaluation">
+      <figcaption>Figure 2. A lazy-loaded chart, swapped in by script after first paint.</figcaption>
+    </figure>
+
+    <p>Held-out sets drift. That drift is usually slow enough to ignore over a single release and fast enough to matter across three, which is why the same benchmark can look flat and then suddenly move without anything about the underlying method changing at all.</p>
+
+    <!-- 3. a chart drawn as INLINE SVG, the common case for dashboards -->
+    <figure>
+      <svg width="620" height="240" viewBox="0 0 620 240" role="img" aria-label="Accuracy by evaluation round">
+        <rect width="620" height="240" fill="#f4f4f2"></rect>
+        <polyline points="40,200 140,170 240,120 340,96 440,70 540,52" fill="none" stroke="#1f6feb" stroke-width="4"></polyline>
+        <line x1="40" y1="210" x2="580" y2="210" stroke="#888" stroke-width="2"></line>
+        <line x1="40" y1="20" x2="40" y2="210" stroke="#888" stroke-width="2"></line>
+        <text x="220" y="234" font-size="14" fill="#333">Evaluation round</text>
+      </svg>
+      <figcaption>Figure 3. Accuracy by evaluation round, drawn as inline SVG.</figcaption>
+    </figure>
+
+    <p>The third chart is the one most often misread. It shows a ratio, not a level, and ratios have a habit of looking dramatic exactly where the denominator is smallest. Read the axis before reading the slope.</p>
+
+    <!-- 4. a chart drawn into a CANVAS by script -->
+    <figure>
+      <canvas id="bars" width="620" height="220"></canvas>
+      <figcaption>Figure 4. Cost per task, drawn into a canvas at runtime.</figcaption>
+    </figure>
+
+    <p>None of this argues that benchmarks are useless. It argues that a benchmark is a measuring instrument with a calibration story, and that the calibration story is usually the interesting part of the result rather than an appendix to it.</p>
+
+    <h2>What we would measure instead</h2>
+
+    <p>A better report would state the distribution, the baseline, the number of trials, and the variance across them, and it would publish the failures alongside the successes so that a reader can judge where the instrument stops being trustworthy.</p>
+
+    <!-- 5. a 1x1 tracking pixel: this SHOULD be dropped -->
+    <img class="tracking" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" width="1" height="1">
+  </article>
+
+  <script>
+    // lazy loader: the real source only arrives after first paint
+    setTimeout(() => {
+      for (const img of document.querySelectorAll('img[data-src]')) {
+        img.src = img.getAttribute('data-src')
+      }
+    }, 300)
+
+    // canvas chart
+    const c = document.getElementById('bars')
+    const g = c.getContext('2d')
+    g.fillStyle = '#f4f4f2'; g.fillRect(0, 0, 620, 220)
+    const vals = [40, 90, 70, 140, 120, 175]
+    g.fillStyle = '#c0663a'
+    vals.forEach((v, i) => g.fillRect(50 + i * 92, 200 - v, 54, v))
+    g.fillStyle = '#333'; g.font = '14px Arial'
+    g.fillText('Cost per task', 240, 216)
+  </script>
+</body>
+</html>

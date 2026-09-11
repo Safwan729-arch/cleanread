@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A Note on Continuum Equations — Messy Times</title>
+<meta property="og:site_name" content="Messy Times">
+<style>
+  body { margin:0; font-family:Arial, sans-serif; background:#eee; }
+  article { max-width:760px; margin:0 auto; background:#fff; padding:28px; }
+  .mwe-math-element { }
+  dl { margin: 1em 0; }
+</style>
+</head>
+<body>
+  <article>
+    <h1>A Note on Continuum Equations</h1>
+    <p class="byline">By Dana Reyes</p>
+
+    <p>The momentum equation can be written as a particular form of the Cauchy relation, whose general convective form is given below. It is the starting point for almost everything that follows, and it is worth reading slowly before moving on to the special cases.</p>
+
+    <!-- display maths, as MediaWiki emits it: a block wrapper around an SVG image -->
+    <dl><dd><span class="mwe-math-element mwe-math-element-display"><img
+      class="mwe-math-fallback-image-display"
+      aria-hidden="true"
+      alt="{\displaystyle {\frac {\mathrm {D} \mathbf {u} }{\mathrm {D} t}}={\frac {1}{\rho }}\nabla \cdot {\boldsymbol {\sigma }}+\mathbf {a} .}"
+      src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNDAiIGhlaWdodD0iNDAiPjx0ZXh0IHg9IjAiIHk9IjI4IiBmb250LXNpemU9IjI0IiBmaWxsPSIjMDAwIj5EdS9EdCA9IC4uLjwvdGV4dD48L3N2Zz4="
+      width="140" height="40"></span></dd></dl>
+
+    <!-- inline maths: these MUST stay inside the sentence -->
+    <p id="inline-para">By setting the Cauchy stress tensor <span class="mwe-math-element mwe-math-element-inline"><img
+      class="mwe-math-fallback-image-inline"
+      aria-hidden="true"
+      alt="{\displaystyle {\boldsymbol {\sigma }}}"
+      src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNCIgaGVpZ2h0PSIxMiI+PHRleHQgeD0iMCIgeT0iMTAiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPnM8L3RleHQ+PC9zdmc+"
+      width="14" height="12"></span> to be the sum of a viscosity term <span class="mwe-math-element mwe-math-element-inline"><img
+      class="mwe-math-fallback-image-inline"
+      aria-hidden="true"
+      alt="{\displaystyle {\boldsymbol {\tau }}}"
+      src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMiIgaGVpZ2h0PSIxMiI+PHRleHQgeD0iMCIgeT0iMTAiIGZvbnQtc2l6ZT0iMTIiIGZpbGw9IiMwMDAiPnQ8L3RleHQ+PC9zdmc+"
+      width="12" height="12"></span> (the deviatoric stress) and a pressure term, we arrive at the usual statement of the balance of momentum for a continuum.</p>
+
+    <h2>Why the grouping matters<span class="mw-editsection">[<a href="#edit">edit</a>]</span></h2>
+
+    <p>Writing the stress as a sum separates the part that resists deformation from the part that resists compression. That separation is what makes the incompressible case tractable, and it is why the two terms are almost always introduced together rather than one at a time.</p>
+
+    <h2>A worked consequence</h2>
+
+    <p>Substituting the decomposition into the balance law and collecting terms gives the form most readers will recognise, which is reproduced here without the intermediate algebra.</p>
+
+    <dl><dd><span class="mwe-math-element mwe-math-element-display"><img
+      class="mwe-math-fallback-image-display"
+      aria-hidden="true"
+      alt="{\displaystyle \rho {\frac {D\mathbf {u} }{Dt}}=-\nabla p+\nabla \cdot {\boldsymbol {\tau }}+\rho \mathbf {g} }"
+      src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iNDAiPjx0ZXh0IHg9IjAiIHk9IjI4IiBmb250LXNpemU9IjIyIiBmaWxsPSIjMDAwIj5yaG8gRHUvRHQgPSAuLi48L3RleHQ+PC9zdmc+"
+      width="200" height="40"></span></dd></dl>
+
+    <p>The remaining sections treat the incompressible case, where the divergence of the velocity field vanishes and the pressure becomes a Lagrange multiplier rather than a thermodynamic variable in its own right.</p>
+  </article>
+</body>
+</html>

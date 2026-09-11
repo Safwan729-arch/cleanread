@@ -1,0 +1,9 @@
+node_modules/
+dist/
+release/
+*.zip
+.DS_Store
+.vite/
+
+# Obsidian UI state (the vault's notes are tracked; the window layout is not)
+.obsidian/workspace.json
