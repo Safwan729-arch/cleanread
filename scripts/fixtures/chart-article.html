@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>How the Models Compare — Messy Times</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; background: #0d0d10; color: #e8e6e1;
+    font: 17px/1.6 Georgia, serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 2.1rem; line-height: 1.2; }
+
+  /* The chart's ink is described only in CSS, never in attributes -- exactly
+     how Vega, D3 and Recharts colour their marks. */
+  .chart-scope { --series-a: #6fa8ff; --series-b: #ff9f6f; --axis: #cfcdc8; }
+  .chart-scope .axis-line { stroke: var(--axis); stroke-width: 1.5; }
+  .chart-scope .tick-label { fill: var(--axis); font-size: 13px; font-family: system-ui, sans-serif; }
+  .chart-scope .series-a { fill: var(--series-a); stroke: var(--series-a); stroke-width: 2.5; }
+  .chart-scope .series-b { fill: var(--series-b); stroke: var(--series-b); stroke-width: 2.5; }
+  .chart-scope .axis-title { fill: var(--axis); font-size: 14px; font-family: system-ui, sans-serif; }
+
+  figure { margin: 2.5em 0; }
+  figcaption { font-size: 0.9rem; color: #a9a7a1; margin-top: 0.8em; }
+  .chart-switches { display: flex; gap: 8px; margin-bottom: 10px; }
+  .chart-switches button {
+    background: #1e1e24; color: #e8e6e1; border: 1px solid #33333c;
+    border-radius: 999px; padding: 5px 12px; font-size: 13px;
+  }
+  .advert { background: #241f14; padding: 14px; border-radius: 6px; color: #d8c89a; }
+</style>
+</head>
+<body>
+<main>
+  <article>
+    <h1>How the Models Compare</h1>
+    <p>Benchmarks are a blunt instrument, but they are the instrument everybody
+    has. The charts below were rendered by the same charting library that draws
+    most of the dashboards you have seen this year, which means they are inline
+    SVG coloured entirely from a stylesheet.</p>
+
+    <p>That combination used to be enough to make a reading view drop them
+    silently, leaving a caption describing a graph that is not there.</p>
+
+    <!-- The wrapper class is a scroll-margin utility. It is harmless, and it is
+         also a substring of Readability's negative-weight list. -->
+    <figure class="scroll-mt-anchor-offset">
+      <div class="chart-scope">
+        <div class="chart-switches">
+          <button type="button" aria-pressed="true">Resolution rate</button>
+          <button type="button" aria-pressed="false">API cost</button>
+          <button type="button" aria-pressed="false">Output tokens</button>
+        </div>
+        <select aria-label="Metric">
+          <option selected>Resolution rate</option>
+          <option>API cost</option>
+        </select>
+        <svg viewBox="0 0 520 300" width="520" height="300" role="img" aria-label="Resolution rate by cost">
+          <line class="axis-line" x1="60" y1="20" x2="60" y2="250"></line>
+          <line class="axis-line" x1="60" y1="250" x2="490" y2="250"></line>
+          <text class="tick-label" x="30" y="30">70%</text>
+          <text class="tick-label" x="30" y="140">45%</text>
+          <text class="tick-label" x="30" y="250">20%</text>
+          <text class="tick-label" x="90" y="272">$0</text>
+          <text class="tick-label" x="250" y="272">$40</text>
+          <text class="tick-label" x="430" y="272">$80</text>
+          <text class="axis-title" x="230" y="295">Estimated API cost</text>
+          <polyline class="series-a" fill="none" points="100,210 160,150 220,120 300,70 420,45"></polyline>
+          <polyline class="series-b" fill="none" points="100,240 170,205 240,180 320,150 440,130"></polyline>
+          <circle class="series-a" cx="300" cy="70" r="6"></circle>
+          <circle class="series-b" cx="320" cy="150" r="6"></circle>
+        </svg>
+      </div>
+      <figcaption>Resolution rate against estimated API cost. The blue series
+      leads at every price point.</figcaption>
+    </figure>
+
+    <p>The second chart carries no switches at all, which is how we learned that
+    the switches were the difference between a graph that survived extraction
+    and one that did not.</p>
+
+    <figure>
+      <div class="chart-scope">
+        <svg viewBox="0 0 520 240" width="520" height="240" role="img" aria-label="Throughput by context length">
+          <line class="axis-line" x1="60" y1="20" x2="60" y2="200"></line>
+          <line class="axis-line" x1="60" y1="200" x2="490" y2="200"></line>
+          <text class="tick-label" x="26" y="30">120</text>
+          <text class="tick-label" x="26" y="200">0</text>
+          <text class="axis-title" x="230" y="232">Context length</text>
+          <rect class="series-a" x="100" y="120" width="46" height="80"></rect>
+          <rect class="series-a" x="180" y="90" width="46" height="110"></rect>
+          <rect class="series-b" x="280" y="150" width="46" height="50"></rect>
+          <rect class="series-b" x="360" y="140" width="46" height="60"></rect>
+        </svg>
+      </div>
+      <figcaption>Throughput holds up as the context window grows.</figcaption>
+    </figure>
+
+    <p class="advert">Advertisement — Upgrade to Messy Times Pro for unlimited charts.</p>
+
+    <!-- an icon, which must NOT be treated as a chart -->
+    <p>Read more <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M4 2 L12 8 L4 14 Z" fill="#888"></path></svg></p>
+
+    <p>Both charts above should reach the reading view with their axis labels
+    readable, their series coloured, and a note saying which views the original
+    offered.</p>
+  </article>
+</main>
+</body>
+</html>

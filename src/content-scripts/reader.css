@@ -111,6 +111,37 @@
   border-radius: 4px;
 }
 
+/* A chart SVG carries its own paint inline (freezeSvgPaint in clean.js) but no
+   size: width/height are dropped so it scales with the reading column, and the
+   viewBox supplies the aspect ratio. */
+.cr-content svg[data-cr-chart] {
+  display: block;
+  /* scaled down to fit the column or the screen, never stretched up: a chart
+     the page drew tall would otherwise become taller than the viewport */
+  max-width: 100%;
+  max-height: 70vh;
+  height: auto;
+  margin: 1.5em auto;
+  border-radius: 4px;
+}
+
+/* The chart carries its own background inline (effectiveBackground in clean.js),
+   because its marks were coloured for the site's surface, not ours. Padding
+   keeps the axis labels off the edge of that panel. */
+.cr-content svg[data-cr-chart] {
+  padding: 0.75em;
+  box-sizing: border-box;
+}
+
+/* What the original page let you switch between; the reader cannot re-run the
+   site's charting code, so it says so instead of implying one series is all. */
+.cr-content [data-cr-chart-options] {
+  margin: -0.6em 0 1.6em;
+  font-size: 0.85em;
+  line-height: 1.5;
+  color: var(--cr-muted);
+}
+
 /* --- maths ----------------------------------------------------------------
    Tagged during extraction (see tagMath in clean.js) because the site's own
    classes are the only thing that identifies an SVG as an equation. */

@@ -40,6 +40,7 @@ const fixtures = {
   '/short': fs.readFileSync(path.join(HERE, 'fixtures', 'short-article.html')),
   '/math': fs.readFileSync(path.join(HERE, 'fixtures', 'math-article.html')),
   '/media': fs.readFileSync(path.join(HERE, 'fixtures', 'media-article.html')),
+  '/chart': fs.readFileSync(path.join(HERE, 'fixtures', 'chart-article.html')),
 }
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
@@ -596,6 +597,60 @@ check('canvas chart is converted to a real image', media.canvases === 0 && media
   `${media.canvases} canvas, ${media.pngFromCanvas} png`)
 check('every surviving figure actually renders wide', media.renderedWide === 3, `${media.renderedWide} wide images`)
 check('tracking pixel is dropped', media.tinyRendered === 0, `${media.tinyRendered} tiny images`)
+
+// --- CSS-driven SVG charts (Vega/D3/Recharts shape)
+await page.goto('http://127.0.0.1:8781/chart', { waitUntil: 'domcontentloaded' })
+await page.waitForTimeout(900)
+const chartClean = await send({ type: 'cleanread/clean-page' })
+check('chart article cleans', chartClean?.ok === true, chartClean?.title ?? chartClean?.reason)
+await page.waitForTimeout(800)
+
+const chartView = await page.locator('#cleanread-root').evaluate((host) => {
+  const c = host.shadowRoot.querySelector('.cr-content')
+  const charts = [...c.querySelectorAll('svg[data-cr-chart]')]
+  const inkOf = (sel) => {
+    const el = charts[0]?.querySelector(sel)
+    return el ? getComputedStyle(el).fill : null
+  }
+  return {
+    charts: charts.length,
+    rendered: charts.filter((s) => {
+      const r = s.getBoundingClientRect()
+      return r.width > 300 && r.height > 100
+    }).length,
+    // an icon must not be promoted to a chart
+    icons: [...c.querySelectorAll('svg:not([data-cr-chart])')].length,
+    tickInk: inkOf('.tick-label, text'),
+    seriesInk: charts[0] ? getComputedStyle(charts[0].querySelector('polyline')).stroke : null,
+    backdrops: charts.filter((s) => s.style.background).length,
+    optionNotes: c.querySelectorAll('[data-cr-chart-options]').length,
+    optionText: c.querySelector('[data-cr-chart-options]')?.textContent ?? '',
+    leftoverSlots: c.querySelectorAll('img[data-cr-chart-slot]').length,
+    controls: c.querySelectorAll('button, select').length,
+    adKept: /Upgrade to Messy Times Pro/i.test(c.textContent),
+    captions: c.querySelectorAll('figcaption').length,
+  }
+})
+
+// the wrapper class is `scroll-mt-anchor-offset`; Readability's negative-weight
+// list contains the bare substring `scroll`, which used to delete the chart
+check('a chart in a "scroll-*" utility wrapper survives', chartView.charts === 2, `${chartView.charts} charts`)
+check('both charts render at content size', chartView.rendered === 2, `${chartView.rendered} rendered`)
+check('no chart placeholder is left behind', chartView.leftoverSlots === 0)
+// the fixture's 16px arrow must not be promoted: exactly the two real charts,
+// and nothing else carrying chart treatment
+check('a 16px icon is not promoted to a chart', chartView.charts === 2 && chartView.icons === 0,
+  `${chartView.charts} charts, ${chartView.icons} other svg`)
+// paint lives only in the page stylesheet, which the shadow root cannot see
+check('axis ink is frozen into the chart', /rgb\(20[0-9], 20[0-9], 20[0-9]\)|rgb\(207, 205, 200\)/.test(chartView.tickInk ?? ''),
+  chartView.tickInk)
+check('series colour is frozen into the chart', /rgb\(111, 168, 255\)/.test(chartView.seriesInk ?? ''), chartView.seriesInk)
+// the fixture is a dark page, so light ink needs its own panel to stay legible
+check('a chart drawn for a dark page keeps a dark panel', chartView.backdrops === 2, `${chartView.backdrops} with backdrop`)
+check('the chart switches are not passed off as working', chartView.controls === 0, `${chartView.controls} controls`)
+check('the reader says which views the original offered', chartView.optionNotes === 1, chartView.optionText.slice(0, 70))
+check('chart captions survive alongside the chart', chartView.captions === 2, `${chartView.captions} captions`)
+check('the chart fix did not weaken ad removal', chartView.adKept === false)
 await page.screenshot({ path: path.join(SHOTS, '10-media.png') })
 await send({ type: 'cleanread/restore-page' })
 

@@ -142,6 +142,285 @@ function inlineLiveMedia(clone) {
     img.setAttribute('alt', live.getAttribute('aria-label') ?? 'Chart')
     copy.replaceWith(img)
   }
+
+  return standInForCharts(clone)
+}
+
+/** A 1x1 transparent GIF. Only ever a placeholder; never rendered. */
+const BLANK_PIXEL =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+
+/**
+ * Paint properties that a chart gets from a stylesheet rather than from
+ * attributes. Vega, D3, Recharts and friends colour their marks with CSS (often
+ * through custom properties), and none of that survives into a shadow root that
+ * deliberately does not load the page's styles.
+ */
+const SVG_PAINT_PROPS = [
+  'fill',
+  'fill-opacity',
+  'stroke',
+  'stroke-width',
+  'stroke-opacity',
+  'stroke-dasharray',
+  'stroke-linecap',
+  'stroke-linejoin',
+  'opacity',
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'text-anchor',
+  'dominant-baseline',
+  'display',
+  'visibility',
+]
+
+/**
+ * Resolve the live element's computed paint onto the clone as inline style.
+ *
+ * The clone is about to lose every class (stripClasses) and will be rendered
+ * inside a shadow root that the page's stylesheet cannot reach, so anything
+ * still described by CSS would render as an unstyled black-on-black shape.
+ * Walking both trees by index works because `copy` is a clone of `live`.
+ */
+function freezeSvgPaint(live, copy) {
+  const liveNodes = [live, ...live.querySelectorAll('*')]
+  const copyNodes = [copy, ...copy.querySelectorAll('*')]
+
+  for (let i = 0; i < liveNodes.length && i < copyNodes.length; i++) {
+    const computed = getComputedStyle(liveNodes[i])
+    let declarations = copyNodes[i].getAttribute('style') ?? ''
+    for (const prop of SVG_PAINT_PROPS) {
+      const value = computed.getPropertyValue(prop)
+      if (value) declarations += `${declarations && !declarations.endsWith(';') ? ';' : ''}${prop}:${value}`
+    }
+    if (declarations) copyNodes[i].setAttribute('style', declarations)
+    // a <style> block inside the chart cannot reach it once it is inline-styled,
+    // and Readability would strip it anyway
+    if (copyNodes[i].tagName?.toLowerCase() === 'style') copyNodes[i].textContent = ''
+  }
+}
+
+/**
+ * Swap every chart-sized inline <svg> for an <img> placeholder, and hand back
+ * the SVGs so they can be put back after extraction.
+ *
+ * Readability counts `img`, `embed`, `object` and `iframe` as media when it
+ * decides whether a container is empty — it has no notion of `svg`. A chart
+ * library renders one big `<svg>` inside a bare `<div>`, so that div scores as
+ * an empty node and the whole chart is deleted. This is why charts vanished on
+ * pages whose text came through perfectly.
+ *
+ * Icons are left alone: they are small, and turning thousands of them into
+ * placeholders would be pointless work.
+ */
+function standInForCharts(clone) {
+  const liveSvgs = [...document.querySelectorAll('svg')]
+  const clonedSvgs = [...clone.querySelectorAll('svg')]
+  const charts = new Map()
+
+  for (let i = 0; i < clonedSvgs.length && i < liveSvgs.length; i++) {
+    const live = liveSvgs[i]
+    const copy = clonedSvgs[i]
+    const rect = live.getBoundingClientRect()
+    if (rect.width < MEDIA_MIN_WIDTH || rect.height < MEDIA_MIN_HEIGHT) continue
+
+    const width = Math.round(rect.width)
+    const height = Math.round(rect.height)
+    freezeSvgPaint(live, copy)
+    if (!copy.getAttribute('viewBox')) copy.setAttribute('viewBox', `0 0 ${width} ${height}`)
+    // the chart must scale with the reader column, not with whatever pixel width
+    // the original site happened to give it
+    copy.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+    // Keep the size the page actually drew it at. Dropping width/height and
+    // letting CSS stretch it to the column turns a tall chart into a screen-high
+    // one; the stylesheet scales it down instead, never up.
+    copy.setAttribute('width', String(width))
+    copy.setAttribute('height', String(height))
+    copy.setAttribute('data-cr-chart', `${width}x${height}`)
+    // The marks were coloured for the background the site drew them on. On a
+    // dark site the axis labels are white, and dropping them onto the reader's
+    // light page makes the chart look empty. Bring the background along.
+    const backdrop = chartBackdrop(live)
+    if (backdrop) copy.style.background = backdrop
+
+    const key = String(charts.size)
+    charts.set(key, { svg: copy, options: chartOptions(live) })
+
+    const placeholder = clone.createElement('img')
+    placeholder.setAttribute('src', BLANK_PIXEL)
+    placeholder.setAttribute('data-cr-chart-slot', key)
+    // real dimensions, so the junk scrub reads this as content-sized media
+    placeholder.setAttribute('width', String(width))
+    placeholder.setAttribute('height', String(height))
+    placeholder.setAttribute('alt', chartLabel(live))
+    copy.replaceWith(placeholder)
+    rescueChartWrapper(placeholder)
+  }
+
+  return charts
+}
+
+/**
+ * Stop Readability from deleting the box the chart sits in.
+ *
+ * Two things sink a chart container, and both are scored before anything looks
+ * at what it contains:
+ *
+ *  1. `_getClassWeight` subtracts 25 for a class matching its negative list --
+ *     which includes `scroll`, `media`, `share`, `promo` and `related` as bare
+ *     substrings. A utility class like `scroll-mt-anchor-offset` (scroll-margin,
+ *     from Tailwind) is enough, and `weight + contentScore < 0` removes the node
+ *     outright. That list was written for 2010 markup; today's utility classes
+ *     collide with it constantly.
+ *  2. `input > Math.floor(p / 3)` removes a container holding form controls and
+ *     no paragraphs -- exactly what a chart with switches looks like.
+ *
+ * So the ancestry between the chart and its figure is stripped of class and id,
+ * and the chart's now-inert controls are removed. Their labels are read first
+ * (chartOptions) so the reader can still say what the original offered.
+ *
+ * This is narrow on purpose: it only touches ancestors of a confirmed,
+ * content-sized chart, never the page at large.
+ */
+function rescueChartWrapper(placeholder) {
+  for (const control of chartWrapper(placeholder).querySelectorAll('button, select, input, textarea, form, style')) {
+    control.remove()
+  }
+  for (const el of chartAncestors(placeholder)) {
+    el.removeAttribute('class')
+    el.removeAttribute('id')
+  }
+}
+
+/** The chart's own box: its figure, or a few levels up when it has none. */
+function chartWrapper(node) {
+  return node.closest?.('figure') ?? node.parentElement ?? node
+}
+
+/** Everything from the chart up to (and including) its figure, bounded. */
+function chartAncestors(node) {
+  const chain = []
+  let el = node.parentElement
+  for (let depth = 0; el && el.tagName !== 'BODY' && depth < 8; depth++) {
+    chain.push(el)
+    if (el.tagName === 'FIGURE') break
+    el = el.parentElement
+  }
+  return chain
+}
+
+/**
+ * What the original page let you switch between.
+ *
+ * A static reading view cannot re-run the site's charting code, so the choices
+ * cannot be made live. Recording them at least means the reader does not
+ * silently present one series as if it were the whole picture.
+ */
+function chartOptions(liveSvg) {
+  const wrapper = liveSvg.closest('figure') ?? liveSvg.parentElement?.parentElement
+  if (!wrapper) return []
+
+  const labels = new Set()
+  for (const tab of wrapper.querySelectorAll('[role="tab"], select option, button')) {
+    const text = tab.textContent?.replace(/\s+/g, ' ').trim()
+    if (text && text.length <= 40) labels.add(text)
+  }
+  return [...labels].slice(0, 12)
+}
+
+/**
+ * Rough perceived lightness, 0 (black) to 1 (white), or null if unreadable.
+ * Handles the forms getComputedStyle actually returns, including the oklab/oklch
+ * that modern sites author in -- whose first component already IS lightness.
+ */
+function lightnessOf(colour) {
+  if (!colour) return null
+  const oklab = colour.match(/^okl(?:ab|ch)\(\s*([\d.]+)%?/i)
+  if (oklab) return Number(oklab[1]) > 1 ? Number(oklab[1]) / 100 : Number(oklab[1])
+
+  const rgb = colour.match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i)
+  if (rgb) {
+    const [r, g, b] = rgb.slice(1, 4).map(Number)
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  }
+
+  const hex = colour.match(/^#([0-9a-f]{6})$/i)
+  if (hex) {
+    const n = parseInt(hex[1], 16)
+    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
+  }
+  return null
+}
+
+/**
+ * A chart drawn for a dark site has light ink, and light ink on the reader's
+ * pale page is invisible -- the marks were there and the axis labels were not.
+ *
+ * Rather than guess at a background (chart containers stack translucent
+ * overlays, so the nearest painted ancestor is usually a 20%-black veil, not
+ * the real surface), decide from the chart's own ink and give it a panel only
+ * when it needs one.
+ */
+function chartBackdrop(liveSvg) {
+  const inks = []
+  for (const node of [...liveSvg.querySelectorAll('text')].slice(0, 24)) {
+    const value = lightnessOf(getComputedStyle(node).fill)
+    if (value !== null) inks.push(value)
+  }
+  if (!inks.length) return null
+
+  inks.sort((a, b) => a - b)
+  const median = inks[Math.floor(inks.length / 2)]
+  if (median < 0.55) return null // dark ink: the reader's own page suits it
+
+  // Light ink needs a dark panel. Prefer the page's real surface when it is
+  // dark, so the chart keeps looking like it did on the original site.
+  const pageColour = getComputedStyle(document.body).backgroundColor
+  const pageLightness = lightnessOf(pageColour)
+  return pageLightness !== null && pageLightness < 0.4 ? pageColour : '#16161a'
+}
+
+/** Charts usually label themselves for screen readers; fall back to the caption. */
+function chartLabel(svg) {
+  return (
+    svg.getAttribute('aria-label') ??
+    svg.querySelector('title')?.textContent?.trim() ??
+    svg.closest('figure')?.querySelector('figcaption')?.textContent?.trim()?.slice(0, 120) ??
+    'Chart'
+  )
+}
+
+/** Put the real charts back where their placeholders survived extraction. */
+function restoreCharts(container, charts) {
+  const doc = container.ownerDocument
+  for (const slot of container.querySelectorAll('img[data-cr-chart-slot]')) {
+    const entry = charts.get(slot.getAttribute('data-cr-chart-slot'))
+    if (!entry) {
+      slot.remove()
+      continue
+    }
+
+    const chart = doc.importNode(entry.svg, true)
+    if (!entry.options.length) {
+      slot.replaceWith(chart)
+      continue
+    }
+
+    // Say what the original offered, rather than passing one series off as all
+    // of them. Plain DOM -- content scripts hold no React (CLAUDE.md).
+    const figure = doc.createElement('div')
+    figure.setAttribute('data-cr-chart-group', '')
+    figure.append(chart)
+    const note = doc.createElement('p')
+    note.setAttribute('data-cr-chart-options', '')
+    note.textContent = `Shown: ${entry.options[0]}. The original page also offered ${entry.options
+      .slice(1)
+      .join(', ')} — open it to switch between them.`
+    figure.append(note)
+    slot.replaceWith(figure)
+  }
 }
 
 /** Spacers and analytics beacons are not article content. */
@@ -377,7 +656,7 @@ export function extractArticle() {
   const media = collectMedia()
   const clone = document.cloneNode(true)
   // bake in what the page actually rendered before Readability sees the clone
-  inlineLiveMedia(clone)
+  const charts = inlineLiveMedia(clone)
   // keepClasses: Readability strips class attributes by default, which would
   // leave scrubJunk() with nothing to match on but its text heuristic.
   const parsed = new Readability(clone, { keepClasses: true }).parse()
@@ -387,6 +666,8 @@ export function extractArticle() {
   const doc = new DOMParser().parseFromString(parsed.content, 'text/html')
   scrubJunk(doc.body, furniture, media.big)
   dropTrackingPixels(doc.body, media.tiny)
+  // after the pixel sweep, so a chart placeholder is never mistaken for a beacon
+  restoreCharts(doc.body, charts)
   tagMath(doc.body) // must precede stripClasses -- it reads the site's classes
   stripClasses(doc.body) // classes were only needed for the scrub
   // must run after the scrub, so removed sections never reach the contents rail

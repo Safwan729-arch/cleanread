@@ -6,7 +6,7 @@
 ![Chrome 116+](https://img.shields.io/badge/Chrome-116%2B-success)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF)
-![Tests](https://img.shields.io/badge/smoke%20tests-121%20checks-brightgreen)
+![Tests](https://img.shields.io/badge/smoke%20tests-133%20checks-brightgreen)
 
 One click strips the ads, cookie banners, sticky menus and newsletter pop-ups, then lays
 the article out as text you control — font size, line spacing, column width, light or dark.
@@ -39,17 +39,24 @@ Nothing is collected. There is no account, no server and no analytics.
 | **Saved, read offline** | **The popup** |
 | ![A saved article opened offline](docs/screenshots/saved-offline.png) | <img src="docs/screenshots/popup.png" alt="The CleanRead popup" width="260"> |
 
-### Two problems worth calling out
+### Three problems worth calling out
 
-Reader modes usually break on the same two things, so both are handled explicitly:
+Reader modes usually break on the same things, so each is handled explicitly:
 
 - **Equations stay readable.** Wikipedia and MathJax render maths as images. A naive
   reader forces every image to `display: block`, which drops inline maths onto its own
   centred line mid-sentence. CleanRead tags maths images, keeps inline maths inline, and
   inverts them in dark mode so black glyphs don't vanish on a dark background.
-- **Charts and figures survive.** Lazy-loaded images, `<canvas>` charts and hero images
-  wrapped in `class="...banner"` are all easy to lose — a cloned `<canvas>` is blank, and
-  a naive junk filter deletes the hero along with the ad. See
+- **Charts survive.** Readability deletes SVG charts for three separate reasons — it has
+  no notion of `<svg>` as media, its negative-class list matches the bare substring
+  `scroll` (so a Tailwind `scroll-mt-*` wrapper is fatal), and a chart's own toggle
+  buttons trip its `input > p/3` rule. On one live article that meant **0 of 12 charts
+  survived**; it is now 12 of 12, with their CSS-driven colours frozen in so they still
+  render inside the shadow root. See
+  [`notes/features/chart-preservation.md`](notes/features/chart-preservation.md).
+- **Figures survive.** Lazy-loaded images, `<canvas>` charts and hero images wrapped in
+  `class="...banner"` are all easy to lose — a cloned `<canvas>` is blank, and a naive
+  junk filter deletes the hero along with the ad. See
   [`notes/features/media-preservation.md`](notes/features/media-preservation.md).
 
 ---
@@ -134,7 +141,7 @@ popup (React)  ──message──▶  content script  ──▶  Readability.js
 ```bash
 npm run dev            # Vite dev server with HMR
 npm run build          # production build to dist/
-npm run smoke:chrome   # 121 checks against the built extension in real Chrome
+npm run smoke:chrome   # 133 checks against the built extension in real Chrome
 npm run package        # build, validate, and zip for the Web Store
 npm run icons          # regenerate the icon set and the promo tile
 npm run shots:store    # render 1280x800 listing screenshots
@@ -143,9 +150,9 @@ npm run shots:store    # render 1280x800 listing screenshots
 ### Testing
 
 There is no mocked DOM. `npm run smoke:chrome` loads the built extension into a real
-Chrome instance and drives the actual message contract — 121 assertions covering
+Chrome instance and drives the actual message contract — 133 assertions covering
 extraction, junk removal, the contents rail, highlighting, storage, both export paths,
-maths rendering, media preservation, and recovery after an extension reload. It also
+maths rendering, media and chart preservation, and recovery after an extension reload. It also
 inspects the generated PDFs and the exported Markdown, because several real bugs passed
 every green assertion and were only visible in the output.
 
@@ -185,6 +192,7 @@ code: how each system works, why particular trade-offs were made, and the bugs w
 remembering. Start at [`notes/00-index.md`](notes/00-index.md). Some entry points:
 
 - [Distraction removal](notes/features/distraction-removal.md) — the three signals, and the accepted risks
+- [Chart preservation](notes/features/chart-preservation.md) — why Readability deletes SVG charts
 - [Media preservation](notes/features/media-preservation.md) — four ways article images go missing
 - [Maths rendering](notes/features/math-rendering.md) — equations as images, kept inline and legible
 - [Content script lifecycle](notes/architecture/content-script-lifecycle.md) — why updating an extension orphans open tabs

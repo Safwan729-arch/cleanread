@@ -1,6 +1,6 @@
 ---
 tags: [feature, content-script, rendering]
-related: [[distraction-removal]], [[math-rendering]], [[reader-view]]
+related: [[distraction-removal]], [[math-rendering]], [[reader-view]], [[chart-preservation]]
 ---
 # Keeping figures and charts
 

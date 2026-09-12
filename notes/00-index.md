@@ -25,6 +25,7 @@ Project rules (stack, conventions, feature status) live in `CLAUDE.md` — not d
 - [[distraction-removal]] — the three signals that decide what is junk
 - [[math-rendering]] — equations as images: keeping them inline, legible and exportable
 - [[media-preservation]] — why figures and charts went missing, and the four fixes
+- [[chart-preservation]] — SVG charts: why Readability deletes them, and the three fixes
 - [[table-of-contents]] — the contents rail: auto-generated, auto-hidden, scroll-spied
 - [[paragraph-highlighting]] — click to highlight; why the worker owns the storage
 - [[save-article]] — the reading list and the offline saved-article page
@@ -37,4 +38,4 @@ Every feature on the CLAUDE.md list is built and verified in Chrome.
 
 ## Sessions
 - [[2026-09-11]] — scaffold, then verified in real Chrome; two bugs found and fixed
-- [[2026-09-12]] — maths rendering, media preservation, and the orphaned-tab fix
+- [[2026-09-12]] — maths, media, the orphaned-tab fix, and SVG charts
