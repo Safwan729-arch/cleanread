@@ -34,6 +34,30 @@ function service() {
     },
   })
 
+  // Markdown cannot draw an SVG, and Turndown's default for an unknown element
+  // is to keep its text -- which spilled every axis tick and series name into
+  // the prose as `70%API CostGPT-6`, from the hidden views as well as the shown
+  // one. Emit a placeholder instead, and nothing at all for decorative icons.
+  td.addRule('chart', {
+    filter: (node) => node.nodeName?.toLowerCase() === 'svg',
+    replacement: (_content, node) => {
+      if (!node.hasAttribute('data-cr-chart') || node.hasAttribute('hidden')) return ''
+      const label = node.getAttribute('aria-label')?.trim()
+      return `\n\n*[Chart${label ? `: ${label}` : ''}]*\n\n`
+    },
+  })
+
+  // A chart group carries one view per switch on the original page. Markdown
+  // has no switches, so name the views in a single line rather than spilling
+  // every tab label into the prose as loose words.
+  td.addRule('chartTabs', {
+    filter: (node) => node.nodeType === 1 && node.hasAttribute('data-cr-chart-tabs'),
+    replacement: (_content, node) => {
+      const labels = [...node.querySelectorAll('[data-cr-chart-tab]')].map((b) => b.textContent.trim())
+      return labels.length ? `\n\n*Chart views: ${labels.join(', ')}.*\n\n` : ''
+    },
+  })
+
   return td
 }
 

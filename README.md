@@ -6,7 +6,7 @@
 ![Chrome 116+](https://img.shields.io/badge/Chrome-116%2B-success)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF)
-![Tests](https://img.shields.io/badge/smoke%20tests-133%20checks-brightgreen)
+![Tests](https://img.shields.io/badge/smoke%20tests-142%20checks-brightgreen)
 
 One click strips the ads, cookie banners, sticky menus and newsletter pop-ups, then lays
 the article out as text you control — font size, line spacing, column width, light or dark.
@@ -52,7 +52,9 @@ Reader modes usually break on the same things, so each is handled explicitly:
   `scroll` (so a Tailwind `scroll-mt-*` wrapper is fatal), and a chart's own toggle
   buttons trip its `input > p/3` rule. On one live article that meant **0 of 12 charts
   survived**; it is now 12 of 12, with their CSS-driven colours frozen in so they still
-  render inside the shadow root. See
+  render inside the shadow root. Charts hidden behind the page's own tabs are captured
+  too — extraction works those switches on the live page, photographs each view, and
+  rebuilds them as a tab bar you can click in the reader. See
   [`notes/features/chart-preservation.md`](notes/features/chart-preservation.md).
 - **Figures survive.** Lazy-loaded images, `<canvas>` charts and hero images wrapped in
   `class="...banner"` are all easy to lose — a cloned `<canvas>` is blank, and a naive
@@ -141,7 +143,7 @@ popup (React)  ──message──▶  content script  ──▶  Readability.js
 ```bash
 npm run dev            # Vite dev server with HMR
 npm run build          # production build to dist/
-npm run smoke:chrome   # 133 checks against the built extension in real Chrome
+npm run smoke:chrome   # 142 checks against the built extension in real Chrome
 npm run package        # build, validate, and zip for the Web Store
 npm run icons          # regenerate the icon set and the promo tile
 npm run shots:store    # render 1280x800 listing screenshots
@@ -150,7 +152,7 @@ npm run shots:store    # render 1280x800 listing screenshots
 ### Testing
 
 There is no mocked DOM. `npm run smoke:chrome` loads the built extension into a real
-Chrome instance and drives the actual message contract — 133 assertions covering
+Chrome instance and drives the actual message contract — 142 assertions covering
 extraction, junk removal, the contents rail, highlighting, storage, both export paths,
 maths rendering, media and chart preservation, and recovery after an extension reload. It also
 inspects the generated PDFs and the exported Markdown, because several real bugs passed
@@ -192,7 +194,7 @@ code: how each system works, why particular trade-offs were made, and the bugs w
 remembering. Start at [`notes/00-index.md`](notes/00-index.md). Some entry points:
 
 - [Distraction removal](notes/features/distraction-removal.md) — the three signals, and the accepted risks
-- [Chart preservation](notes/features/chart-preservation.md) — why Readability deletes SVG charts
+- [Chart preservation](notes/features/chart-preservation.md) — why Readability deletes SVG charts, and capturing views behind toggles
 - [Media preservation](notes/features/media-preservation.md) — four ways article images go missing
 - [Maths rendering](notes/features/math-rendering.md) — equations as images, kept inline and legible
 - [Content script lifecycle](notes/architecture/content-script-lifecycle.md) — why updating an extension orphans open tabs

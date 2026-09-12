@@ -32,6 +32,13 @@ const PRINT_CSS = `
 .crpdf img, .crpdf svg { max-width: 100%; height: auto; }
 .crpdf figure > svg { display: block; margin: 1.2em auto; }
 .crpdf figure, .crpdf p > img:only-child:not([data-cr-math="inline"]) { display: block; margin: 1.2em auto; }
+.crpdf svg[data-cr-chart] { display: block; margin: 1.2em auto; max-width: 100%; max-height: 60vh; height: auto; padding: 8px; box-sizing: border-box; }
+/* paper has no switches: print the selected view and the list of the others */
+.crpdf [data-cr-chart-view][hidden] { display: none !important; }
+.crpdf [data-cr-chart-tabs] { font-size: 0.78em; color: #6b6b66; text-align: center;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 1.2em 0 0; }
+.crpdf [data-cr-chart-tab] { border: 0; background: none; font: inherit; color: inherit; padding: 0 4px; }
+.crpdf [data-cr-chart-tab][aria-pressed="true"] { font-weight: 700; color: #14140f; }
 .crpdf [data-cr-math="inline"] { display: inline-block; vertical-align: -0.28em; margin: 0 0.12em; }
 .crpdf [data-cr-math="display"] { display: block; margin: 1.1em auto; }
 .crpdf figcaption { font-size: 0.78em; color: #6b6b66; text-align: center;

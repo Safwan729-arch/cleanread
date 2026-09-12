@@ -97,7 +97,7 @@ function looksLikePlaceholder(img) {
  *  - a <canvas> clones as an empty canvas -- the drawing does not come with it,
  *    which is why script-drawn graphs arrived blank
  */
-function inlineLiveMedia(clone) {
+function inlineLiveMedia(clone, variants) {
   const liveImgs = [...document.images]
   const clonedImgs = [...clone.images]
 
@@ -143,7 +143,7 @@ function inlineLiveMedia(clone) {
     copy.replaceWith(img)
   }
 
-  return standInForCharts(clone)
+  return standInForCharts(clone, variants)
 }
 
 /** A 1x1 transparent GIF. Only ever a placeholder; never rendered. */
@@ -215,7 +215,7 @@ function freezeSvgPaint(live, copy) {
  * Icons are left alone: they are small, and turning thousands of them into
  * placeholders would be pointless work.
  */
-function standInForCharts(clone) {
+function standInForCharts(clone, variants = new Map()) {
   const liveSvgs = [...document.querySelectorAll('svg')]
   const clonedSvgs = [...clone.querySelectorAll('svg')]
   const charts = new Map()
@@ -229,24 +229,12 @@ function standInForCharts(clone) {
     const width = Math.round(rect.width)
     const height = Math.round(rect.height)
     freezeSvgPaint(live, copy)
-    if (!copy.getAttribute('viewBox')) copy.setAttribute('viewBox', `0 0 ${width} ${height}`)
-    // the chart must scale with the reader column, not with whatever pixel width
-    // the original site happened to give it
-    copy.setAttribute('preserveAspectRatio', 'xMidYMid meet')
-    // Keep the size the page actually drew it at. Dropping width/height and
-    // letting CSS stretch it to the column turns a tall chart into a screen-high
-    // one; the stylesheet scales it down instead, never up.
-    copy.setAttribute('width', String(width))
-    copy.setAttribute('height', String(height))
-    copy.setAttribute('data-cr-chart', `${width}x${height}`)
-    // The marks were coloured for the background the site drew them on. On a
-    // dark site the axis labels are white, and dropping them onto the reader's
-    // light page makes the chart look empty. Bring the background along.
-    const backdrop = chartBackdrop(live)
-    if (backdrop) copy.style.background = backdrop
+    dressChart(copy, width, height, chartBackdrop(live))
 
+    // views captured by working the page's own switches, if there were any
+    const views = variants.get(live.closest('figure'))
     const key = String(charts.size)
-    charts.set(key, { svg: copy, options: chartOptions(live) })
+    charts.set(key, views?.length > 1 ? { views } : { svg: copy, options: chartOptions(live) })
 
     const placeholder = clone.createElement('img')
     placeholder.setAttribute('src', BLANK_PIXEL)
@@ -382,6 +370,204 @@ function chartBackdrop(liveSvg) {
   return pageLightness !== null && pageLightness < 0.4 ? pageColour : '#16161a'
 }
 
+/**
+ * Give a frozen chart the attributes the reader needs.
+ *
+ * The size the page drew it at is kept: dropping width/height and letting CSS
+ * stretch the chart to the column turns a tall one into a screen-high one. The
+ * stylesheet scales it down from here, never up. The backdrop travels with it
+ * because the marks were coloured for the site's surface, not ours.
+ */
+function dressChart(svg, width, height, backdrop) {
+  if (!svg.getAttribute('viewBox')) svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet')
+  svg.setAttribute('width', String(width))
+  svg.setAttribute('height', String(height))
+  svg.setAttribute('data-cr-chart', `${width}x${height}`)
+  if (backdrop) svg.style.background = backdrop
+}
+
+/* --- charts behind toggles -------------------------------------------------
+   Many charts show one series at a time and put the rest behind tabs or a
+   <select>. A reading view cannot re-run the site's charting code, so the only
+   way to keep those views is to work the controls while the page is still live
+   and photograph each result. That happens here, before the clone is taken. */
+
+/** Bounds, so a page of charts cannot turn cleaning into a ten-second stall. */
+const CHART_CAPTURE_BUDGET_MS = 8000
+const MAX_CHARTS_DRIVEN = 8
+const MAX_VARIANTS_PER_CHART = 6
+const CHART_SETTLE_MS = 900
+
+/** Controls that do something other than switch the series. */
+const NOT_A_SERIES_SWITCH =
+  /^(download|copy|share|expand|full ?screen|close|menu|play|pause|reset|zoom|save|print|embed|about|info|help|source|data)\b/i
+
+const bigChartIn = (figure) =>
+  [...figure.querySelectorAll('svg')].find((s) => {
+    const r = s.getBoundingClientRect()
+    return r.width >= MEDIA_MIN_WIDTH && r.height >= MEDIA_MIN_HEIGHT
+  })
+
+/**
+ * A fingerprint that changes when the chart redraws.
+ *
+ * Position is part of it, not just geometry: a legend settles by moving its
+ * labels, and leaving x/y out meant that settling was invisible here.
+ */
+const chartShape = (svg) =>
+  [...svg.querySelectorAll('path, rect, circle, line, polyline, text, g')]
+    .map((n) =>
+      [
+        n.getAttribute('d'),
+        n.getAttribute('points'),
+        n.getAttribute('transform'),
+        n.getAttribute('x'),
+        n.getAttribute('y'),
+        n.tagName === 'text' ? n.textContent : '',
+      ].join(','),
+    )
+    .join('|')
+
+/**
+ * The switches belonging to one chart, in preference order. Tabs and selects
+ * say what they are; loose buttons are the last resort and are filtered hard,
+ * because clicking the wrong thing on someone's live page is a real cost.
+ */
+function seriesSwitches(figure) {
+  const tabs = [...figure.querySelectorAll('[role="tab"]')]
+  if (tabs.length > 1) return { kind: 'tab', nodes: tabs }
+
+  const select = figure.querySelector('select')
+  if (select && select.options.length > 1) return { kind: 'select', nodes: [...select.options], select }
+
+  const buttons = [...figure.querySelectorAll('button')].filter((b) => {
+    const label = b.textContent?.replace(/\s+/g, ' ').trim() ?? ''
+    return label && label.length <= 40 && !NOT_A_SERIES_SWITCH.test(label) && b.type !== 'submit'
+  })
+  return buttons.length > 1 ? { kind: 'button', nodes: buttons } : null
+}
+
+const labelOf = (node) => (node.textContent ?? node.label ?? '').replace(/\s+/g, ' ').trim()
+
+const activeIndex = (switches) => {
+  if (switches.kind === 'select') return Math.max(0, switches.select.selectedIndex)
+  const i = switches.nodes.findIndex(
+    (n) => n.getAttribute('aria-selected') === 'true' || n.getAttribute('aria-pressed') === 'true',
+  )
+  return i === -1 ? 0 : i
+}
+
+function activate(switches, index) {
+  if (switches.kind === 'select') {
+    switches.select.selectedIndex = index
+    switches.select.dispatchEvent(new Event('input', { bubbles: true }))
+    switches.select.dispatchEvent(new Event('change', { bubbles: true }))
+    return
+  }
+  switches.nodes[index].click()
+}
+
+/**
+ * Wait for the chart to redraw AND settle, or give up.
+ *
+ * Redraws are asynchronous and staged: the marks move first and the legend is
+ * laid out afterwards. Photographing on the first change caught charts
+ * mid-flight, with legend labels printed on top of each other. So wait for the
+ * shape to change, then for it to stop changing.
+ */
+async function waitForRedraw(figure, before, deadline) {
+  const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+  let changed = false
+  let previous = before
+
+  for (;;) {
+    await pause(60)
+    const svg = bigChartIn(figure)
+    if (!svg) {
+      if (Date.now() > deadline) return null
+      continue
+    }
+
+    const shape = chartShape(svg)
+    if (!changed && shape !== before) changed = true
+    // two identical readings in a row means the redraw has finished
+    if (changed && shape === previous) return svg
+    previous = shape
+    if (Date.now() > deadline) return changed ? svg : null
+  }
+}
+
+/**
+ * Work each chart's switches and keep a frozen copy of every view.
+ *
+ * Runs on the LIVE page before the clone is taken, and puts the original
+ * selection back afterwards, so the page is left as it was found. Everything is
+ * bounded and wrapped: a page that fights back costs a few seconds, never the
+ * article.
+ */
+async function captureChartVariants() {
+  const captured = new Map()
+  const figures = [...document.querySelectorAll('figure')].filter(bigChartIn)
+  const deadline = Date.now() + CHART_CAPTURE_BUDGET_MS
+  let driven = 0
+
+  for (const figure of figures) {
+    if (driven >= MAX_CHARTS_DRIVEN || Date.now() > deadline) break
+    const switches = seriesSwitches(figure)
+    if (!switches) continue
+
+    const originally = activeIndex(switches)
+    const views = []
+    const seen = new Set()
+
+    for (let i = 0; i < switches.nodes.length && views.length < MAX_VARIANTS_PER_CHART; i++) {
+      if (Date.now() > deadline) break
+      const label = labelOf(switches.nodes[i])
+      if (!label || NOT_A_SERIES_SWITCH.test(label)) continue
+
+      let svg = bigChartIn(figure)
+      if (!svg) break
+
+      if (i !== originally) {
+        const before = chartShape(svg)
+        try {
+          activate(switches, i)
+        } catch {
+          continue // a control that refuses to be driven is not worth the article
+        }
+        svg = await waitForRedraw(figure, before, Math.min(Date.now() + CHART_SETTLE_MS, deadline))
+        if (!svg) break
+      }
+
+      // identical shapes mean the click changed nothing worth keeping
+      const shape = chartShape(svg)
+      if (seen.has(shape)) continue
+      seen.add(shape)
+
+      const copy = svg.cloneNode(true)
+      freezeSvgPaint(svg, copy)
+      const box = svg.getBoundingClientRect()
+      dressChart(copy, Math.round(box.width), Math.round(box.height), chartBackdrop(svg))
+      views.push({ label, svg: copy })
+    }
+
+    // put the page back the way we found it
+    try {
+      if (activeIndex(switches) !== originally) activate(switches, originally)
+    } catch {
+      /* best effort */
+    }
+
+    if (views.length > 1) {
+      captured.set(figure, views)
+      driven++
+    }
+  }
+
+  return captured
+}
+
 /** Charts usually label themselves for screen readers; fall back to the caption. */
 function chartLabel(svg) {
   return (
@@ -402,24 +588,54 @@ function restoreCharts(container, charts) {
       continue
     }
 
+    // Several views, photographed by working the page's own switches: rebuild
+    // them as a group the reader can switch between. Plain DOM -- content
+    // scripts hold no React (CLAUDE.md). The click handling is wired after the
+    // markup is inserted, by attachChartToggles.
+    if (entry.views) {
+      const group = doc.createElement('div')
+      group.setAttribute('data-cr-chart-group', '')
+
+      const bar = doc.createElement('div')
+      bar.setAttribute('data-cr-chart-tabs', '')
+      entry.views.forEach((view, index) => {
+        const tab = doc.createElement('button')
+        tab.setAttribute('type', 'button')
+        tab.setAttribute('data-cr-chart-tab', String(index))
+        tab.setAttribute('aria-pressed', index === 0 ? 'true' : 'false')
+        tab.textContent = view.label
+        bar.append(tab)
+      })
+      group.append(bar)
+
+      entry.views.forEach((view, index) => {
+        const chart = doc.importNode(view.svg, true)
+        chart.setAttribute('data-cr-chart-view', String(index))
+        if (index > 0) chart.setAttribute('hidden', '')
+        group.append(chart)
+      })
+      slot.replaceWith(group)
+      continue
+    }
+
     const chart = doc.importNode(entry.svg, true)
-    if (!entry.options.length) {
+    if (!entry.options?.length) {
       slot.replaceWith(chart)
       continue
     }
 
-    // Say what the original offered, rather than passing one series off as all
-    // of them. Plain DOM -- content scripts hold no React (CLAUDE.md).
-    const figure = doc.createElement('div')
-    figure.setAttribute('data-cr-chart-group', '')
-    figure.append(chart)
+    // Only one view could be captured, so say what the original offered rather
+    // than passing one series off as all of them.
+    const group = doc.createElement('div')
+    group.setAttribute('data-cr-chart-group', '')
+    group.append(chart)
     const note = doc.createElement('p')
     note.setAttribute('data-cr-chart-options', '')
     note.textContent = `Shown: ${entry.options[0]}. The original page also offered ${entry.options
       .slice(1)
       .join(', ')} — open it to switch between them.`
-    figure.append(note)
-    slot.replaceWith(figure)
+    group.append(note)
+    slot.replaceWith(group)
   }
 }
 
@@ -505,6 +721,29 @@ function tagMath(container) {
   for (const el of container.querySelectorAll('.katex, mjx-container')) {
     if (!el.dataset.crMath && !el.closest('[data-cr-math="display"]')) el.dataset.crMath = 'inline'
   }
+}
+
+/**
+ * Make the captured chart views switchable.
+ *
+ * The article arrives as an HTML string, so no listener survives it -- one
+ * delegated handler per render instead. Exported so the offline saved-article
+ * page can wire the same markup.
+ */
+export function attachChartToggles(container) {
+  container.addEventListener('click', (event) => {
+    const tab = event.target.closest?.('[data-cr-chart-tab]')
+    if (!tab || !container.contains(tab)) return
+
+    const group = tab.closest('[data-cr-chart-group]')
+    const wanted = tab.getAttribute('data-cr-chart-tab')
+    for (const other of group.querySelectorAll('[data-cr-chart-tab]')) {
+      other.setAttribute('aria-pressed', other === tab ? 'true' : 'false')
+    }
+    for (const view of group.querySelectorAll('[data-cr-chart-view]')) {
+      view.toggleAttribute('hidden', view.getAttribute('data-cr-chart-view') !== wanted)
+    }
+  })
 }
 
 /** The site's own classes are dead weight once the scrub has used them. */
@@ -650,13 +889,15 @@ function silencePage() {
  * @returns {null | {title:string,content:string,textContent:string,byline:string,
  *   siteName:string,excerpt:string,readingTimeMinutes:number,url:string}}
  */
-export function extractArticle() {
+export async function extractArticle() {
   // must be read from the LIVE document -- a clone has no computed styles
+  // works the page's own chart switches while the page is still live
+  const variants = await captureChartVariants()
   const furniture = overlayTexts()
   const media = collectMedia()
   const clone = document.cloneNode(true)
   // bake in what the page actually rendered before Readability sees the clone
-  const charts = inlineLiveMedia(clone)
+  const charts = inlineLiveMedia(clone, variants)
   // keepClasses: Readability strips class attributes by default, which would
   // leave scrubJunk() with nothing to match on but its text heuristic.
   const parsed = new Readability(clone, { keepClasses: true }).parse()
@@ -899,6 +1140,7 @@ export function renderReader(article, settings) {
   document.body.append(host)
 
   tocHandle = renderToc(shadow, surface, article.toc ?? [])
+  attachChartToggles(body)
   attachHighlighting(body, article.url)
   detachPrint = installPrintSupport(host)
 

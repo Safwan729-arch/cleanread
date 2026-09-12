@@ -12,6 +12,7 @@ import { markdownFilename, toMarkdown } from '../lib/export-markdown.js'
 import { downloadText } from '../lib/download.js'
 import { exportPdf } from '../lib/export-pdf.js'
 import readerCss from '../content-scripts/reader.css?inline'
+import { attachChartToggles } from '../content-scripts/clean.js'
 
 const root = document.getElementById('root')
 
@@ -125,6 +126,8 @@ async function main() {
   const body = document.createElement('article')
   body.className = 'cr-content'
   body.innerHTML = article.content // sanitised by Readability before it was stored
+  // a saved article keeps every captured chart view; make them switchable here too
+  attachChartToggles(body)
 
   surface.append(header, body)
   shadow.append(surface)

@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { toMarkdown } from '../src/lib/export-markdown.js'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '..')
@@ -626,7 +627,8 @@ const chartView = await page.locator('#cleanread-root').evaluate((host) => {
     optionNotes: c.querySelectorAll('[data-cr-chart-options]').length,
     optionText: c.querySelector('[data-cr-chart-options]')?.textContent ?? '',
     leftoverSlots: c.querySelectorAll('img[data-cr-chart-slot]').length,
-    controls: c.querySelectorAll('button, select').length,
+    pageControls: c.querySelectorAll('button:not([data-cr-chart-tab]), select').length,
+    ourTabs: c.querySelectorAll('[data-cr-chart-tab]').length,
     adKept: /Upgrade to Messy Times Pro/i.test(c.textContent),
     captions: c.querySelectorAll('figcaption').length,
   }
@@ -634,23 +636,72 @@ const chartView = await page.locator('#cleanread-root').evaluate((host) => {
 
 // the wrapper class is `scroll-mt-anchor-offset`; Readability's negative-weight
 // list contains the bare substring `scroll`, which used to delete the chart
-check('a chart in a "scroll-*" utility wrapper survives', chartView.charts === 2, `${chartView.charts} charts`)
-check('both charts render at content size', chartView.rendered === 2, `${chartView.rendered} rendered`)
+check('a chart in a "scroll-*" utility wrapper survives', chartView.charts === 5, `${chartView.charts} charts`)
+check('every visible chart renders at content size', chartView.rendered === 3, `${chartView.rendered} rendered`)
 check('no chart placeholder is left behind', chartView.leftoverSlots === 0)
-// the fixture's 16px arrow must not be promoted: exactly the two real charts,
-// and nothing else carrying chart treatment
-check('a 16px icon is not promoted to a chart', chartView.charts === 2 && chartView.icons === 0,
+// the fixture's 16px arrow must not be promoted: the two static charts plus the
+// three captured views of the switchable one, and nothing else
+check('a 16px icon is not promoted to a chart', chartView.charts === 5 && chartView.icons === 0,
   `${chartView.charts} charts, ${chartView.icons} other svg`)
 // paint lives only in the page stylesheet, which the shadow root cannot see
 check('axis ink is frozen into the chart', /rgb\(20[0-9], 20[0-9], 20[0-9]\)|rgb\(207, 205, 200\)/.test(chartView.tickInk ?? ''),
   chartView.tickInk)
 check('series colour is frozen into the chart', /rgb\(111, 168, 255\)/.test(chartView.seriesInk ?? ''), chartView.seriesInk)
 // the fixture is a dark page, so light ink needs its own panel to stay legible
-check('a chart drawn for a dark page keeps a dark panel', chartView.backdrops === 2, `${chartView.backdrops} with backdrop`)
-check('the chart switches are not passed off as working', chartView.controls === 0, `${chartView.controls} controls`)
+check('a chart drawn for a dark page keeps a dark panel', chartView.backdrops === 5, `${chartView.backdrops} with backdrop`)
+check("the page's own dead controls are removed", chartView.pageControls === 0, `${chartView.pageControls} left`)
 check('the reader says which views the original offered', chartView.optionNotes === 1, chartView.optionText.slice(0, 70))
-check('chart captions survive alongside the chart', chartView.captions === 2, `${chartView.captions} captions`)
+check('chart captions survive alongside the chart', chartView.captions === 3, `${chartView.captions} captions`)
 check('the chart fix did not weaken ad removal', chartView.adKept === false)
+
+// --- charts hidden behind the page's own switches
+// The third fixture chart redraws only when a tab is clicked, asynchronously.
+// Extraction works those switches on the live page and photographs each result.
+const toggles = await page.locator('#cleanread-root').evaluate((host) => {
+  const c = host.shadowRoot.querySelector('.cr-content')
+  const bar = c.querySelector('[data-cr-chart-tabs]')
+  if (!bar) return { error: 'no chart tab bar' }
+  const group = bar.closest('[data-cr-chart-group]')
+  const views = [...group.querySelectorAll('[data-cr-chart-view]')]
+  const shapeOf = (v) => [...v.querySelectorAll('rect')].map((r) => r.getAttribute('height')).join(',')
+
+  const before = views.findIndex((v) => !v.hasAttribute('hidden'))
+  group.querySelectorAll('[data-cr-chart-tab]')[2].click()
+  const after = views.findIndex((v) => !v.hasAttribute('hidden'))
+
+  return {
+    labels: [...group.querySelectorAll('[data-cr-chart-tab]')].map((b) => b.textContent),
+    views: views.length,
+    distinct: new Set(views.map(shapeOf)).size,
+    shownAtFirst: before,
+    shownAfterClick: after,
+    visibleCount: views.filter((v) => !v.hasAttribute('hidden')).length,
+    pressed: [...group.querySelectorAll('[data-cr-chart-tab]')].map((b) => b.getAttribute('aria-pressed')),
+  }
+})
+check('views behind the page switches are captured', toggles.views === 3, `${toggles.views ?? toggles.error} views`)
+check('each captured view holds different data', toggles.distinct === 3, `${toggles.distinct} distinct`)
+check('the switch labels come from the page', toggles.labels?.join(',') === 'Speed,Accuracy,Cost', toggles.labels?.join(','))
+check('only one view is shown at a time', toggles.visibleCount === 1, `${toggles.visibleCount} visible`)
+check('clicking a switch changes the chart', toggles.shownAtFirst === 0 && toggles.shownAfterClick === 2,
+  `${toggles.shownAtFirst} -> ${toggles.shownAfterClick}`)
+check('the pressed switch is marked for assistive tech', toggles.pressed?.join(',') === 'false,false,true',
+  toggles.pressed?.join(','))
+
+// driving the page's controls must leave the page as it was found
+const liveTabs = await page.evaluate(() =>
+  [...document.querySelectorAll('[role="tab"]')].map((t) => t.getAttribute('aria-selected')).join(','))
+check('the live page is left on its original view', liveTabs === 'true,false,false', liveTabs)
+
+// Markdown cannot draw an SVG, and Turndown keeps unknown elements' text --
+// which spilled every axis tick, from hidden views too, into the prose.
+const chartArticle = await send({ type: 'cleanread/get-article' })
+const chartMd = chartArticle?.ok ? toMarkdown(chartArticle.article) : ''
+check('markdown names each chart instead of spilling its axis labels',
+  /\*\[Chart/.test(chartMd) && !/Estimated API cost|Context length/.test(chartMd),
+  chartMd.split('\n').find((l) => l.includes('[Chart')) ?? 'no chart placeholder')
+check('markdown lists the chart views once', (chartMd.match(/Chart views:/g) ?? []).length === 1,
+  chartMd.split('\n').find((l) => l.includes('Chart views:')) ?? 'none')
 await page.screenshot({ path: path.join(SHOTS, '10-media.png') })
 await send({ type: 'cleanread/restore-page' })
 

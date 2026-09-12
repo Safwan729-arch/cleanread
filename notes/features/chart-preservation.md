@@ -60,15 +60,47 @@ instead: median lightness of its `text` fills above 0.55 means it was drawn for 
 dark background, so it keeps a dark panel of its own. `lightnessOf` parses
 `rgb`, `rgba`, hex and `oklab`/`oklch`, because sites author in all of them.
 
-## Toggles are recorded, not replicated
+## Charts hidden behind switches
 
-Many charts sit behind tabs or a `<select>` ("API cost", "Output tokens", …).
-A static reading view cannot re-run the site's charting code, so it cannot switch
-between them. Rather than present one series as if it were the whole picture,
-`chartOptions` reads the labels and the reader prints a line under the chart:
+Many charts show one series at a time and put the rest behind tabs or a
+`<select>` ("API cost", "Output tokens", …). Those views exist only after a
+click, so extraction never saw them — the reader kept one view out of three.
 
-> Shown: API Cost. The original page also offered Output tokens, GPT‑6 Astra, … —
-> open it to switch between them.
+The reader cannot re-run the site's charting code, so the views are **captured
+while the page is still live**: `captureChartVariants()` runs before the clone is
+taken, works each chart's own switches, and photographs every result. The reader
+then rebuilds them as a group with its own tab bar, wired by
+`attachChartToggles()` (delegated, because the article arrives as an HTML string
+and no listener survives that). The saved-article page wires the same markup.
+
+On the live article that prompted this: **7 charts switchable, 2–3 distinct views
+each, all genuinely different data.** Extraction cost ~1.7s.
+
+Safeguards, because this drives someone's live page:
+- only controls **inside the chart's own figure**, and only `[role=tab]`, a
+  `<select>`, or plain buttons — a label matching `download|share|close|play|…`
+  is never clicked
+- the original selection is restored afterwards, so the page is left as found
+- bounded: 8 charts, 6 views each, an 8s total budget; a chart that will not be
+  driven costs a moment and never the article
+- a view whose shape is identical to one already captured is discarded
+
+Where only one view can be captured, the old behaviour stands: the reader names
+the others rather than passing one series off as the whole picture.
+
+### Photograph it after it settles, not when it moves
+The first version captured on the first change and caught charts mid-flight,
+with legend labels printed on top of each other. Redraws are staged — marks
+first, legend afterwards. `waitForRedraw` now waits for the shape to change and
+then to *stop* changing (two identical readings). The fingerprint had to include
+`x`/`y` and `transform` as well as geometry, or a legend settling into place was
+invisible to it.
+
+### Markdown says what it cannot draw
+Turndown keeps unknown elements' text, so an SVG chart spilled every axis tick
+and series name into the prose as `70%API CostGPT-6` — from the hidden views as
+well as the visible one. Charts now export as `*[Chart: <label>]*`, with one line
+naming the views; decorative icons export as nothing.
 
 ## Limits worth knowing
 - Only charts **mounted at the moment you clean** are captured. A page that

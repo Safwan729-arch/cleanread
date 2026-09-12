@@ -105,6 +105,61 @@
     <p>Both charts above should reach the reading view with their axis labels
     readable, their series coloured, and a note saying which views the original
     offered.</p>
+
+    <p>The third chart is the one that matters most: its other views exist only
+    after you click, exactly like the dashboards this reader kept losing.</p>
+
+    <figure class="scroll-mt-anchor-offset">
+      <div class="chart-scope">
+        <div class="chart-switches" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-series="speed">Speed</button>
+          <button type="button" role="tab" aria-selected="false" data-series="accuracy">Accuracy</button>
+          <button type="button" role="tab" aria-selected="false" data-series="cost">Cost</button>
+        </div>
+        <svg id="switchable" viewBox="0 0 520 260" width="520" height="260" role="img" aria-label="Switchable chart">
+          <line class="axis-line" x1="60" y1="20" x2="60" y2="210"></line>
+          <line class="axis-line" x1="60" y1="210" x2="490" y2="210"></line>
+          <text class="axis-title" id="series-name" x="230" y="248">Speed</text>
+          <g id="bars"></g>
+        </svg>
+      </div>
+      <figcaption>Three views of the same benchmark run.</figcaption>
+    </figure>
+
+    <script>
+      // Redraws on click, the way a real charting library does -- including the
+      // asynchronous gap that makes naive capture grab the previous view.
+      const SERIES = {
+        speed:    [60, 120, 90, 150],
+        accuracy: [140, 80, 160, 110],
+        cost:     [30, 170, 70, 100],
+      }
+      const bars = document.getElementById('bars')
+      const name = document.getElementById('series-name')
+      function draw(key) {
+        bars.innerHTML = ''
+        SERIES[key].forEach((h, i) => {
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+          rect.setAttribute('class', i % 2 ? 'series-b' : 'series-a')
+          rect.setAttribute('x', String(100 + i * 90))
+          rect.setAttribute('y', String(210 - h))
+          rect.setAttribute('width', '52')
+          rect.setAttribute('height', String(h))
+          bars.append(rect)
+        })
+        name.textContent = key[0].toUpperCase() + key.slice(1)
+      }
+      draw('speed')
+      for (const tab of document.querySelectorAll('[role="tab"]')) {
+        tab.addEventListener('click', () => {
+          for (const other of document.querySelectorAll('[role="tab"]')) {
+            other.setAttribute('aria-selected', String(other === tab))
+          }
+          // deliberate async redraw
+          setTimeout(() => draw(tab.dataset.series), 120)
+        })
+      }
+    </script>
   </article>
 </main>
 </body>

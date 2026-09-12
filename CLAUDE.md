@@ -121,7 +121,7 @@ related: [[dexie-setup]], [[saved-articles-schema]]
 
 Keep this list current — it's the cheapest way for Claude Code to know project state without opening every note.
 
-Checked items are verified running in real Chrome via `npm run smoke:chrome` (133 checks).
+Checked items are verified running in real Chrome via `npm run smoke:chrome` (142 checks).
 
 - [x] Content script + Readability.js integration
 - [x] Distraction removal

@@ -133,8 +133,49 @@
   box-sizing: border-box;
 }
 
-/* What the original page let you switch between; the reader cannot re-run the
-   site's charting code, so it says so instead of implying one series is all. */
+/* Chart views captured by working the page's own switches during extraction.
+   Only the selected one is shown; `hidden` is set on the rest. */
+.cr-content [data-cr-chart-view][hidden] {
+  display: none !important;
+}
+
+.cr-content [data-cr-chart-tabs] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 1.5em 0 0.5em;
+}
+
+.cr-content [data-cr-chart-tab] {
+  font: inherit;
+  font-size: 0.8em;
+  line-height: 1.2;
+  padding: 5px 11px;
+  border: 1px solid var(--cr-rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cr-muted);
+  cursor: pointer;
+}
+
+.cr-content [data-cr-chart-tab]:hover {
+  color: var(--cr-fg);
+  border-color: var(--cr-muted);
+}
+
+.cr-content [data-cr-chart-tab][aria-pressed='true'] {
+  background: var(--cr-fg);
+  border-color: var(--cr-fg);
+  color: var(--cr-bg);
+}
+
+/* the chart sits right under its switches */
+.cr-content [data-cr-chart-tabs] + svg[data-cr-chart] {
+  margin-top: 0;
+}
+
+/* What the original page let you switch between when only one view could be
+   captured; the reader says so instead of implying one series is all. */
 .cr-content [data-cr-chart-options] {
   margin: -0.6em 0 1.6em;
   font-size: 0.85em;

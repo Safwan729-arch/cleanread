@@ -33,12 +33,12 @@ async function handleMessage(message) {
     // The popup needs the full article (content included) in order to save it.
     // Extract on demand so saving works without cleaning the page first.
     case MSG.GET_ARTICLE: {
-      currentArticle ??= extractArticle()
+      currentArticle ??= await extractArticle()
       return currentArticle ? { ok: true, article: currentArticle } : { ok: false, reason: 'no-article' }
     }
 
     case MSG.CLEAN_PAGE: {
-      const article = extractArticle()
+      const article = await extractArticle()
       if (!article) return { ok: false, reason: 'no-article' }
       currentArticle = article
       renderReader(article, await getSettings())
