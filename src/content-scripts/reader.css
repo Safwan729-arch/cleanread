@@ -133,6 +133,20 @@
   box-sizing: border-box;
 }
 
+/* Embedded players. Readability deletes every iframe it does not recognise as
+   YouTube/Vimeo/Twitch, so these are carried through extraction by hand (see
+   standInForEmbeds in clean.js). The stored width/height give the aspect ratio;
+   the column decides the width. */
+.cr-content [data-cr-embed] {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5em auto;
+  border: 0;
+  border-radius: 4px;
+  background: #000;
+}
+
 /* Chart views captured by working the page's own switches during extraction.
    Only the selected one is shown; `hidden` is set on the rest. */
 .cr-content [data-cr-chart-view][hidden] {

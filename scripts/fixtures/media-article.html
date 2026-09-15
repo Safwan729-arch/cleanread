@@ -65,7 +65,24 @@
 
     <p>A better report would state the distribution, the baseline, the number of trials, and the variance across them, and it would publish the failures alongside the successes so that a reader can judge where the instrument stops being trustworthy.</p>
 
-    <!-- 5. a 1x1 tracking pixel: this SHOULD be dropped -->
+    <!-- 5. a self-hosted video embed. Readability deletes every iframe that is
+         not YouTube/Vimeo/Twitch/Dailymotion/Wikimedia, so this one must be
+         carried through extraction by hand. -->
+    <figure>
+      <iframe src="/clip" width="560" height="315" title="A 15-second demo clip" allowfullscreen></iframe>
+      <figcaption>Figure 5. A demo clip, embedded from the site's own player.</figcaption>
+    </figure>
+
+    <!-- 6. a plain <video>, which must survive as well -->
+    <figure>
+      <video width="560" height="315" controls poster="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='315'%3E%3Crect width='560' height='315' fill='%23223'/%3E%3C/svg%3E"></video>
+      <figcaption>Figure 6. A native video element.</figcaption>
+    </figure>
+
+    <!-- 7. an advertising iframe, which must NOT be kept -->
+    <iframe src="/ads.doubleclick.net/banner" width="468" height="180" title="advert"></iframe>
+
+    <!-- 8. a 1x1 tracking pixel: this SHOULD be dropped -->
     <img class="tracking" src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" width="1" height="1">
   </article>
 

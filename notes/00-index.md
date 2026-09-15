@@ -26,6 +26,7 @@ Project rules (stack, conventions, feature status) live in `CLAUDE.md` — not d
 - [[math-rendering]] — equations as images: keeping them inline, legible and exportable
 - [[media-preservation]] — why figures and charts went missing, and the four fixes
 - [[chart-preservation]] — SVG charts: why Readability deletes them, and the three fixes
+- [[embed-preservation]] — video embeds: Readability keeps five hosts and deletes the rest
 - [[table-of-contents]] — the contents rail: auto-generated, auto-hidden, scroll-spied
 - [[paragraph-highlighting]] — click to highlight; why the worker owns the storage
 - [[save-article]] — the reading list and the offline saved-article page
@@ -39,3 +40,4 @@ Every feature on the CLAUDE.md list is built and verified in Chrome.
 ## Sessions
 - [[2026-09-11]] — scaffold, then verified in real Chrome; two bugs found and fixed
 - [[2026-09-12]] — maths, media, the orphaned-tab fix, and SVG charts
+- [[2026-09-15]] — video embeds: Readability deletes every player it does not recognise

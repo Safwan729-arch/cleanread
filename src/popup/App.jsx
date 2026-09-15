@@ -231,8 +231,10 @@ export default function App() {
         ) : null}
       </header>
 
+      {/* Extraction can take a few seconds on a page whose charts have to be
+          switched through one by one, so say so rather than look frozen. */}
       <button className="popup__primary" onClick={toggleReader} disabled={busy}>
-        {state.active ? 'Restore original page' : 'Clean this page'}
+        {busy ? 'Cleaning...' : state.active ? 'Restore original page' : 'Clean this page'}
       </button>
 
       <button className="popup__ghost popup__save" onClick={toggleSaved} disabled={busy}>

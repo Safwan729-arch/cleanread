@@ -143,7 +143,90 @@ function inlineLiveMedia(clone, variants) {
     copy.replaceWith(img)
   }
 
-  return standInForCharts(clone, variants)
+  return { charts: standInForCharts(clone, variants), embeds: standInForEmbeds(clone) }
+}
+
+/** Iframes that are advertising, not content. */
+const AD_HOST =
+  /doubleclick|googlesyndication|googleadservices|adservice|amazon-adsystem|taboola|outbrain|criteo|adnxs|scorecardresearch|moatads/i
+
+/**
+ * Keep embedded players.
+ *
+ * Readability's `_prepArticle` runs `_clean(articleContent, "iframe")`, which
+ * deletes every iframe whose attributes do not match its `_allowedVideoRegex` --
+ * a hardcoded list of YouTube, Vimeo, Dailymotion, Twitch and Wikimedia. A site
+ * that hosts its own player therefore loses every video, which is how five
+ * demo clips vanished from an article whose text came through perfectly.
+ *
+ * Same trick as the charts: swap in an <img> placeholder that Readability
+ * counts as media, then put the real element back afterwards.
+ */
+function standInForEmbeds(clone) {
+  const embeds = new Map()
+  const kinds = ['iframe', 'video']
+
+  for (const tag of kinds) {
+    const live = [...document.querySelectorAll(tag)]
+    const copies = [...clone.querySelectorAll(tag)]
+
+    for (let i = 0; i < copies.length && i < live.length; i++) {
+      const rect = live[i].getBoundingClientRect()
+      if (rect.width < MEDIA_MIN_WIDTH || rect.height < MEDIA_MIN_HEIGHT) continue
+      const src = live[i].getAttribute('src') ?? live[i].querySelector('source')?.getAttribute('src') ?? ''
+      if (AD_HOST.test(src)) continue
+
+      const width = Math.round(rect.width)
+      const height = Math.round(rect.height)
+      const copy = copies[i]
+      copy.setAttribute('data-cr-embed', `${width}x${height}`)
+      // The reader column is narrower than the player was sized for, so the
+      // width is given up to CSS and the shape is kept as a ratio -- without it
+      // the frame collapses to nothing.
+      copy.removeAttribute('style')
+      copy.removeAttribute('width')
+      copy.removeAttribute('height')
+      copy.style.aspectRatio = `${width} / ${height}`
+      copy.setAttribute('loading', 'lazy')
+
+      const key = String(embeds.size)
+      embeds.set(key, copy)
+
+      const placeholder = clone.createElement('img')
+      placeholder.setAttribute('src', BLANK_PIXEL)
+      placeholder.setAttribute('data-cr-embed-slot', key)
+      placeholder.setAttribute('width', String(width))
+      placeholder.setAttribute('height', String(height))
+      placeholder.setAttribute('alt', embedLabel(live[i]))
+      copy.replaceWith(placeholder)
+      rescueMediaWrapper(placeholder)
+    }
+  }
+
+  return embeds
+}
+
+/** Players usually name themselves; fall back to the caption. */
+function embedLabel(el) {
+  return (
+    el.getAttribute('title') ??
+    el.getAttribute('aria-label') ??
+    el.closest('figure')?.querySelector('figcaption')?.textContent?.trim()?.slice(0, 120) ??
+    'Embedded video'
+  )
+}
+
+/** Put the real players back where their placeholders survived extraction. */
+function restoreEmbeds(container, embeds) {
+  const doc = container.ownerDocument
+  for (const slot of container.querySelectorAll('img[data-cr-embed-slot]')) {
+    const embed = embeds.get(slot.getAttribute('data-cr-embed-slot'))
+    if (!embed) {
+      slot.remove()
+      continue
+    }
+    slot.replaceWith(doc.importNode(embed, true))
+  }
 }
 
 /** A 1x1 transparent GIF. Only ever a placeholder; never rendered. */
@@ -244,7 +327,7 @@ function standInForCharts(clone, variants = new Map()) {
     placeholder.setAttribute('height', String(height))
     placeholder.setAttribute('alt', chartLabel(live))
     copy.replaceWith(placeholder)
-    rescueChartWrapper(placeholder)
+    rescueMediaWrapper(placeholder)
   }
 
   return charts
@@ -272,7 +355,7 @@ function standInForCharts(clone, variants = new Map()) {
  * This is narrow on purpose: it only touches ancestors of a confirmed,
  * content-sized chart, never the page at large.
  */
-function rescueChartWrapper(placeholder) {
+function rescueMediaWrapper(placeholder) {
   for (const control of chartWrapper(placeholder).querySelectorAll('button, select, input, textarea, form, style')) {
     control.remove()
   }
@@ -897,7 +980,7 @@ export async function extractArticle() {
   const media = collectMedia()
   const clone = document.cloneNode(true)
   // bake in what the page actually rendered before Readability sees the clone
-  const charts = inlineLiveMedia(clone, variants)
+  const preserved = inlineLiveMedia(clone, variants)
   // keepClasses: Readability strips class attributes by default, which would
   // leave scrubJunk() with nothing to match on but its text heuristic.
   const parsed = new Readability(clone, { keepClasses: true }).parse()
@@ -908,7 +991,8 @@ export async function extractArticle() {
   scrubJunk(doc.body, furniture, media.big)
   dropTrackingPixels(doc.body, media.tiny)
   // after the pixel sweep, so a chart placeholder is never mistaken for a beacon
-  restoreCharts(doc.body, charts)
+  restoreCharts(doc.body, preserved.charts)
+  restoreEmbeds(doc.body, preserved.embeds)
   tagMath(doc.body) // must precede stripClasses -- it reads the site's classes
   stripClasses(doc.body) // classes were only needed for the scrub
   // must run after the scrub, so removed sections never reach the contents rail

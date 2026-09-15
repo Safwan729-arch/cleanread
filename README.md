@@ -6,7 +6,7 @@
 ![Chrome 116+](https://img.shields.io/badge/Chrome-116%2B-success)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF)
-![Tests](https://img.shields.io/badge/smoke%20tests-142%20checks-brightgreen)
+![Tests](https://img.shields.io/badge/smoke%20tests-147%20checks-brightgreen)
 
 One click strips the ads, cookie banners, sticky menus and newsletter pop-ups, then lays
 the article out as text you control — font size, line spacing, column width, light or dark.
@@ -39,7 +39,7 @@ Nothing is collected. There is no account, no server and no analytics.
 | **Saved, read offline** | **The popup** |
 | ![A saved article opened offline](docs/screenshots/saved-offline.png) | <img src="docs/screenshots/popup.png" alt="The CleanRead popup" width="260"> |
 
-### Three problems worth calling out
+### Four problems worth calling out
 
 Reader modes usually break on the same things, so each is handled explicitly:
 
@@ -56,6 +56,12 @@ Reader modes usually break on the same things, so each is handled explicitly:
   too — extraction works those switches on the live page, photographs each view, and
   rebuilds them as a tab bar you can click in the reader. See
   [`notes/features/chart-preservation.md`](notes/features/chart-preservation.md).
+- **Videos survive.** Readability deletes every `<iframe>` that isn't YouTube, Vimeo,
+  Dailymotion, Twitch or Wikimedia — a hardcoded list of five hosts — so a publisher
+  serving its own player loses every clip in the article. On one live page that was
+  **6 of 6 embeds gone** while the text came through perfectly; they are now carried
+  through extraction by hand, with ad iframes still dropped by host. See
+  [`notes/features/embed-preservation.md`](notes/features/embed-preservation.md).
 - **Figures survive.** Lazy-loaded images, `<canvas>` charts and hero images wrapped in
   `class="...banner"` are all easy to lose — a cloned `<canvas>` is blank, and a naive
   junk filter deletes the hero along with the ad. See
@@ -143,7 +149,7 @@ popup (React)  ──message──▶  content script  ──▶  Readability.js
 ```bash
 npm run dev            # Vite dev server with HMR
 npm run build          # production build to dist/
-npm run smoke:chrome   # 142 checks against the built extension in real Chrome
+npm run smoke:chrome   # 147 checks against the built extension in real Chrome
 npm run package        # build, validate, and zip for the Web Store
 npm run icons          # regenerate the icon set and the promo tile
 npm run shots:store    # render 1280x800 listing screenshots
@@ -152,9 +158,9 @@ npm run shots:store    # render 1280x800 listing screenshots
 ### Testing
 
 There is no mocked DOM. `npm run smoke:chrome` loads the built extension into a real
-Chrome instance and drives the actual message contract — 142 assertions covering
+Chrome instance and drives the actual message contract — 147 assertions covering
 extraction, junk removal, the contents rail, highlighting, storage, both export paths,
-maths rendering, media and chart preservation, and recovery after an extension reload. It also
+maths rendering, media, chart and embed preservation, and recovery after an extension reload. It also
 inspects the generated PDFs and the exported Markdown, because several real bugs passed
 every green assertion and were only visible in the output.
 
@@ -195,6 +201,7 @@ remembering. Start at [`notes/00-index.md`](notes/00-index.md). Some entry point
 
 - [Distraction removal](notes/features/distraction-removal.md) — the three signals, and the accepted risks
 - [Chart preservation](notes/features/chart-preservation.md) — why Readability deletes SVG charts, and capturing views behind toggles
+- [Embed preservation](notes/features/embed-preservation.md) — Readability keeps five video hosts and deletes the rest
 - [Media preservation](notes/features/media-preservation.md) — four ways article images go missing
 - [Maths rendering](notes/features/math-rendering.md) — equations as images, kept inline and legible
 - [Content script lifecycle](notes/architecture/content-script-lifecycle.md) — why updating an extension orphans open tabs

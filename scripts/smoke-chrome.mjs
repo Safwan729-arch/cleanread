@@ -42,6 +42,8 @@ const fixtures = {
   '/math': fs.readFileSync(path.join(HERE, 'fixtures', 'math-article.html')),
   '/media': fs.readFileSync(path.join(HERE, 'fixtures', 'media-article.html')),
   '/chart': fs.readFileSync(path.join(HERE, 'fixtures', 'chart-article.html')),
+  // stands in for a site's own video player, which Readability would delete
+  '/clip': Buffer.from('<!doctype html><body style="margin:0;background:#123"><p style="color:#fff">clip</p>'),
 }
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
@@ -591,13 +593,38 @@ const media = await page.locator('#cleanread-root').evaluate((host) => {
 })
 // the hero sits in <figure class="article-banner"> -- "banner" used to delete it
 check('hero image inside a "banner" wrapper is kept', media.captions.includes('Figure 1.'), media.captions.join(' '))
-check('all four figures survive extraction', media.figures === 4, `${media.figures} figures`)
+check("every figure survives extraction", media.figures === 6, `${media.figures} figures`)
 check('lazy-loaded chart keeps its real source, not the placeholder', media.placeholders === 0)
 check('inline SVG chart survives', media.svgs === 1, `${media.svgs} svg`)
 check('canvas chart is converted to a real image', media.canvases === 0 && media.pngFromCanvas === 1,
   `${media.canvases} canvas, ${media.pngFromCanvas} png`)
 check('every surviving figure actually renders wide', media.renderedWide === 3, `${media.renderedWide} wide images`)
 check('tracking pixel is dropped', media.tinyRendered === 0, `${media.tinyRendered} tiny images`)
+
+// --- embedded players
+// Readability's _prepArticle deletes every iframe that does not match its
+// hardcoded YouTube/Vimeo/Twitch whitelist, so a site hosting its own player
+// loses all of its videos. They are carried through extraction by hand instead.
+const embeds = await page.locator('#cleanread-root').evaluate((host) => {
+  const c = host.shadowRoot.querySelector('.cr-content')
+  const kept = [...c.querySelectorAll('[data-cr-embed]')]
+  return {
+    total: kept.length,
+    iframes: kept.filter((e) => e.tagName === 'IFRAME').length,
+    videos: kept.filter((e) => e.tagName === 'VIDEO').length,
+    sized: kept.filter((e) => {
+      const r = e.getBoundingClientRect()
+      return r.width > 300 && r.height > 100
+    }).length,
+    adKept: [...c.querySelectorAll('iframe')].some((f) => /doubleclick/.test(f.getAttribute('src') ?? '')),
+    leftoverSlots: c.querySelectorAll('img[data-cr-embed-slot]').length,
+  }
+})
+check('a self-hosted video iframe survives', embeds.iframes === 1, `${embeds.iframes} iframes`)
+check('a native <video> survives', embeds.videos === 1, `${embeds.videos} videos`)
+check('embeds keep their shape in the reader column', embeds.sized === 2, `${embeds.sized} sized`)
+check('an advertising iframe is still dropped', embeds.adKept === false)
+check('no embed placeholder is left behind', embeds.leftoverSlots === 0)
 
 // --- CSS-driven SVG charts (Vega/D3/Recharts shape)
 await page.goto('http://127.0.0.1:8781/chart', { waitUntil: 'domcontentloaded' })
