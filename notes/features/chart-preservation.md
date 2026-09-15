@@ -81,7 +81,7 @@ Safeguards, because this drives someone's live page:
   `<select>`, or plain buttons — a label matching `download|share|close|play|…`
   is never clicked
 - the original selection is restored afterwards, so the page is left as found
-- bounded: 8 charts, 6 views each, an 8s total budget; a chart that will not be
+- bounded: 8 charts, 6 views each, a 6s total budget; a chart that will not be
   driven costs a moment and never the article
 - a view whose shape is identical to one already captured is discarded
 
@@ -103,9 +103,9 @@ well as the visible one. Charts now export as `*[Chart: <label>]*`, with one lin
 naming the views; decorative icons export as nothing.
 
 ## Limits worth knowing
-- Only charts **mounted at the moment you clean** are captured. A page that
-  mounts charts as you scroll will yield 9 one time and 10 the next; scrolling
-  through the article first captures more.
+- Only charts **mounted at the moment you clean** can be captured — but
+  extraction now scrolls the page through first to make them mount, so this is
+  no longer something the reader has to do by hand (see the last section).
 - A chart drawn to `<canvas>` goes through the canvas path in
   [[media-preservation]] instead, and a cross-origin-tainted canvas still cannot
   be read.
@@ -114,3 +114,28 @@ naming the views; decorative icons export as nothing.
 
 Covered by `scripts/fixtures/chart-article.html`, which reproduces the
 `scroll-*` wrapper, CSS-only paint, switches, a dark page and a decorative icon.
+
+## A figure that was never built cannot be rescued
+
+Everything above assumes the chart exists when extraction runs. On a long
+article it usually does not: figures are mounted as you scroll past them, so
+opening a page and clicking Clean straight away finds almost nothing.
+
+Measured on the live article, without touching the scroll wheel:
+
+| | charts mounted | reader charts | switchable |
+|---|---|---|---|
+| after scrolling through | 10 | 24 | 7 |
+| open, then Clean | **1** | 4 | **1** |
+
+That is the whole bug: nine of ten charts had never been created, so there was
+nothing to photograph and no switches to rebuild. `mountLazyContent()` now
+scrolls the page through once before anything is measured or cloned, then puts
+the scroll position back. Bounded to 2.5s, because an infinite-scroll page would
+otherwise keep going forever.
+
+With it, opening the page and cleaning immediately gives the same 24 charts and
+7 switchable groups as scrolling by hand first.
+
+The fixture covers this: its last chart mounts on an `IntersectionObserver`
+1800px down the page, and the smoke test never scrolls.

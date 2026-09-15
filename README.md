@@ -6,7 +6,7 @@
 ![Chrome 116+](https://img.shields.io/badge/Chrome-116%2B-success)
 ![React 19](https://img.shields.io/badge/React-19-61DAFB)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF)
-![Tests](https://img.shields.io/badge/smoke%20tests-147%20checks-brightgreen)
+![Tests](https://img.shields.io/badge/smoke%20tests-150%20checks-brightgreen)
 
 One click strips the ads, cookie banners, sticky menus and newsletter pop-ups, then lays
 the article out as text you control — font size, line spacing, column width, light or dark.
@@ -149,7 +149,7 @@ popup (React)  ──message──▶  content script  ──▶  Readability.js
 ```bash
 npm run dev            # Vite dev server with HMR
 npm run build          # production build to dist/
-npm run smoke:chrome   # 147 checks against the built extension in real Chrome
+npm run smoke:chrome   # 150 checks against the built extension in real Chrome
 npm run package        # build, validate, and zip for the Web Store
 npm run icons          # regenerate the icon set and the promo tile
 npm run shots:store    # render 1280x800 listing screenshots
@@ -158,7 +158,7 @@ npm run shots:store    # render 1280x800 listing screenshots
 ### Testing
 
 There is no mocked DOM. `npm run smoke:chrome` loads the built extension into a real
-Chrome instance and drives the actual message contract — 147 assertions covering
+Chrome instance and drives the actual message contract — 150 assertions covering
 extraction, junk removal, the contents rail, highlighting, storage, both export paths,
 maths rendering, media, chart and embed preservation, and recovery after an extension reload. It also
 inspects the generated PDFs and the exported Markdown, because several real bugs passed

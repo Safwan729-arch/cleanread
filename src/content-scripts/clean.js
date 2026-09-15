@@ -476,8 +476,43 @@ function dressChart(svg, width, height, backdrop) {
    way to keep those views is to work the controls while the page is still live
    and photograph each result. That happens here, before the clone is taken. */
 
+/* --- making the page finish loading itself -------------------------------- */
+
+const MOUNT_BUDGET_MS = 2500
+const MOUNT_STEP_PAUSE = 90
+
+/**
+ * Scroll the page through once so lazy content actually exists.
+ *
+ * Modern articles build their figures as you reach them. Click "Clean this
+ * page" straight after opening one and most of it has never been created: on a
+ * measured article only 1 of 10 charts was mounted, so the reader got 4 charts
+ * and a single set of switches instead of 24 and seven. Nothing downstream can
+ * recover a chart that was never built -- it has to be made to exist first.
+ *
+ * The original scroll position is restored, so the page is left where the
+ * reader found it. Bounded by time, because an infinite-scroll page would
+ * happily keep going.
+ */
+async function mountLazyContent() {
+  const startX = window.scrollX
+  const startY = window.scrollY
+  const deadline = Date.now() + MOUNT_BUDGET_MS
+  const step = Math.max(400, Math.round(window.innerHeight * 0.9))
+
+  for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+    if (Date.now() > deadline) break
+    window.scrollTo({ top: y, left: startX, behavior: 'instant' })
+    await new Promise((resolve) => setTimeout(resolve, MOUNT_STEP_PAUSE))
+  }
+
+  window.scrollTo({ top: startY, left: startX, behavior: 'instant' })
+  // whatever just mounted needs a moment to draw before it can be photographed
+  await new Promise((resolve) => setTimeout(resolve, 250))
+}
+
 /** Bounds, so a page of charts cannot turn cleaning into a ten-second stall. */
-const CHART_CAPTURE_BUDGET_MS = 8000
+const CHART_CAPTURE_BUDGET_MS = 6000
 const MAX_CHARTS_DRIVEN = 8
 const MAX_VARIANTS_PER_CHART = 6
 const CHART_SETTLE_MS = 900
@@ -974,6 +1009,9 @@ function silencePage() {
  */
 export async function extractArticle() {
   // must be read from the LIVE document -- a clone has no computed styles
+  // a figure that was never built cannot be rescued later, so make the page
+  // finish loading itself before anything is measured or cloned
+  await mountLazyContent()
   // works the page's own chart switches while the page is still live
   const variants = await captureChartVariants()
   const furniture = overlayTexts()

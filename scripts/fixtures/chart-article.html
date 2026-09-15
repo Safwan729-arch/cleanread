@@ -126,6 +126,40 @@
       <figcaption>Three views of the same benchmark run.</figcaption>
     </figure>
 
+    <p>Everything below sits far enough down the page that it has never been on
+    screen when the reader is opened.</p>
+
+    <div style="height:1800px" aria-hidden="true"></div>
+
+    <h2>Built only when you reach it</h2>
+    <p>The chart below does not exist until it scrolls into view, which is how
+    most long articles are built now.</p>
+
+    <figure>
+      <div class="chart-scope" id="lazy-slot"></div>
+      <figcaption>A chart that mounts only when it is reached.</figcaption>
+    </figure>
+
+    <script>
+      // Mounts on first view, like every chart on a long modern article.
+      const slot = document.getElementById('lazy-slot')
+      new IntersectionObserver((entries, obs) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          obs.disconnect()
+          slot.innerHTML = `
+            <svg viewBox="0 0 520 240" width="520" height="240" role="img" aria-label="Deferred chart">
+              <line class="axis-line" x1="60" y1="20" x2="60" y2="200"></line>
+              <line class="axis-line" x1="60" y1="200" x2="490" y2="200"></line>
+              <text class="axis-title" x="210" y="232">Mounted on scroll</text>
+              <rect class="series-a" x="110" y="90" width="60" height="110"></rect>
+              <rect class="series-b" x="220" y="130" width="60" height="70"></rect>
+              <rect class="series-a" x="330" y="60" width="60" height="140"></rect>
+            </svg>`
+        }
+      }).observe(slot)
+    </script>
+
     <script>
       // Redraws on click, the way a real charting library does -- including the
       // asynchronous gap that makes naive capture grab the previous view.

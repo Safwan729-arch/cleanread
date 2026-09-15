@@ -663,22 +663,22 @@ const chartView = await page.locator('#cleanread-root').evaluate((host) => {
 
 // the wrapper class is `scroll-mt-anchor-offset`; Readability's negative-weight
 // list contains the bare substring `scroll`, which used to delete the chart
-check('a chart in a "scroll-*" utility wrapper survives', chartView.charts === 5, `${chartView.charts} charts`)
-check('every visible chart renders at content size', chartView.rendered === 3, `${chartView.rendered} rendered`)
+check('a chart in a "scroll-*" utility wrapper survives', chartView.charts === 6, `${chartView.charts} charts`)
+check('every visible chart renders at content size', chartView.rendered === 4, `${chartView.rendered} rendered`)
 check('no chart placeholder is left behind', chartView.leftoverSlots === 0)
 // the fixture's 16px arrow must not be promoted: the two static charts plus the
 // three captured views of the switchable one, and nothing else
-check('a 16px icon is not promoted to a chart', chartView.charts === 5 && chartView.icons === 0,
+check('a 16px icon is not promoted to a chart', chartView.charts === 6 && chartView.icons === 0,
   `${chartView.charts} charts, ${chartView.icons} other svg`)
 // paint lives only in the page stylesheet, which the shadow root cannot see
 check('axis ink is frozen into the chart', /rgb\(20[0-9], 20[0-9], 20[0-9]\)|rgb\(207, 205, 200\)/.test(chartView.tickInk ?? ''),
   chartView.tickInk)
 check('series colour is frozen into the chart', /rgb\(111, 168, 255\)/.test(chartView.seriesInk ?? ''), chartView.seriesInk)
 // the fixture is a dark page, so light ink needs its own panel to stay legible
-check('a chart drawn for a dark page keeps a dark panel', chartView.backdrops === 5, `${chartView.backdrops} with backdrop`)
+check('a chart drawn for a dark page keeps a dark panel', chartView.backdrops === 6, `${chartView.backdrops} with backdrop`)
 check("the page's own dead controls are removed", chartView.pageControls === 0, `${chartView.pageControls} left`)
 check('the reader says which views the original offered', chartView.optionNotes === 1, chartView.optionText.slice(0, 70))
-check('chart captions survive alongside the chart', chartView.captions === 3, `${chartView.captions} captions`)
+check('chart captions survive alongside the chart', chartView.captions === 4, `${chartView.captions} captions`)
 check('the chart fix did not weaken ad removal', chartView.adKept === false)
 
 // --- charts hidden behind the page's own switches
@@ -719,6 +719,28 @@ check('the pressed switch is marked for assistive tech', toggles.pressed?.join('
 const liveTabs = await page.evaluate(() =>
   [...document.querySelectorAll('[role="tab"]')].map((t) => t.getAttribute('aria-selected')).join(','))
 check('the live page is left on its original view', liveTabs === 'true,false,false', liveTabs)
+
+// A figure that is never built cannot be rescued afterwards. The fixture's last
+// chart mounts only on an IntersectionObserver, 1800px down the page, and this
+// test never scrolls -- extraction has to make the page finish loading itself.
+const lazyChart = await page.locator('#cleanread-root').evaluate((host) => {
+  const c = host.shadowRoot.querySelector('.cr-content')
+  const deferred = [...c.querySelectorAll('svg[data-cr-chart]')].find(
+    (s) => s.getAttribute('aria-label') === 'Deferred chart',
+  )
+  return {
+    found: Boolean(deferred),
+    marks: deferred ? deferred.querySelectorAll('rect').length : 0,
+    caption: [...c.querySelectorAll('figcaption')].some((f) => /mounts only when it is reached/.test(f.textContent)),
+  }
+})
+check('a chart that mounts only on scroll is still captured', lazyChart.found && lazyChart.marks === 3,
+  `found=${lazyChart.found} marks=${lazyChart.marks}`)
+check('its caption comes through with it', lazyChart.caption)
+
+// driving the page must not leave the reader scrolled somewhere else
+const scrollLeftAt = await page.evaluate(() => window.scrollY)
+check('the page is left at the scroll position it was found at', scrollLeftAt === 0, `scrollY=${scrollLeftAt}`)
 
 // Markdown cannot draw an SVG, and Turndown keeps unknown elements' text --
 // which spilled every axis tick, from hidden views too, into the prose.
